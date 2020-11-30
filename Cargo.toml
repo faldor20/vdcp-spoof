@@ -1,0 +1,16 @@
+[package]
+name = "vdcp-spoof"
+version = "0.1.0"
+authors = ["faldor20 <eli.jambu@yahoo.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+modular-bitfield = "0.11.2"
+#nibble = "0.1.0"
+serialport = "3.3.0"
+flexi_logger = "0.16"
+log = "0.4"
+simple-error = "0.2.2"
