@@ -19,11 +19,13 @@ fn setup_logging() {
     }
 }
 fn setup_webserver()->Receiver<(u8,Vec<u64>)>{
-    let (tx,rx)=mpsc::channel();
+    let (tx,rx)=mpsc::sync_channel(100);
     thread::spawn(move||web_server::start_server(tx));
     rx
 }
+
 fn main() {
+    let times= 
     setup_logging();
     let receiver=setup_webserver();
     let a: Vec<String> = args().collect();
@@ -33,6 +35,7 @@ fn main() {
         2 => serial::start(&a[1]).expect("Completly failed interacting with serial port"),
         _ => info!("command should be:'VDCP 'Port name''"),
     }
+    //receiver.iter();
     
     info!("finish");
 }
