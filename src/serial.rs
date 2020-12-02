@@ -1,13 +1,12 @@
-
-use std::{self, error::Error, io, time::Duration, thread};
+use std::{self, error::Error, io, sync::mpsc::Receiver, thread, time::Duration};
 
 use crossbeam::atomic::AtomicCell;
 use log::*;
 use serialport::prelude::*;
 
 use crate::vdcp::{self, Message};
-use super::TimesDB;
-pub fn start(com: &String,vdcp_times:&AtomicCell<Vec<u16>>) -> Result<(), Box<dyn Error>> {
+
+pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>) -> Result<(), Box<dyn Error>> {
     info!("starting serial connection at com port:{0}", com);
     let port_settings = serialport::SerialPortSettings {
         baud_rate: 38400,
@@ -18,7 +17,7 @@ pub fn start(com: &String,vdcp_times:&AtomicCell<Vec<u16>>) -> Result<(), Box<dy
         timeout: Duration::from_millis(1),
     };
     let port = serialport::open_with_settings(&com, &port_settings)?;
-    serial_reader(port,vdcp_times)?;
+    serial_reader(port, vdcp_times)?;
     Ok(())
 }
 //an end of a message can be one of two things.
@@ -63,12 +62,15 @@ fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8) -> Result<Messag
         //=====Give the message to the vdcp command runner=====
         //TODO: it might be worth starting a new thread here
 
-       
         Ok(msg)
     }
 }
-fn handle_message(port: &mut Box<dyn SerialPort>,msg:Message,vdcp_times:&Vec<u16>)->Result<(),io::Error>{
-    let response = vdcp::Run_Command(msg,vdcp_times);
+fn handle_message(
+    port: &mut Box<dyn SerialPort>,
+    msg: Message,
+    vdcp_times: &Vec<u16>,
+) -> Result<(), io::Error> {
+    let response = vdcp::Run_Command(msg, vdcp_times);
     port.write_all(&response)?;
     Ok(())
 }
@@ -98,7 +100,10 @@ fn read_start(port: &mut Box<dyn SerialPort>) -> Result<(), io::Error> {
     Ok(())
 }
 ///Attempts to read data from the port and then run a command associated with it
-fn handle_incoming_data(port: &mut Box<dyn SerialPort>,vdcp_times:&Vec<u16>) -> Result<(), io::Error> {
+fn handle_incoming_data(
+    port: &mut Box<dyn SerialPort>,
+    vdcp_times: &Vec<u16>,
+) -> Result<(), io::Error> {
     //TODO: make it so taht naything after the readstart causing a faulure sends a NAK back to the sender
     read_start(port)?; //delay after if fail
 
@@ -107,20 +112,29 @@ fn handle_incoming_data(port: &mut Box<dyn SerialPort>,vdcp_times:&Vec<u16>) -> 
     thread::sleep(std::time::Duration::from_millis(10));
 
     let byte_count = read_length(port)?;
-    let message= read_message(port, byte_count)?;
-    handle_message(port,message,vdcp_times)?;
+    let message = read_message(port, byte_count)?;
+    handle_message(port, message, vdcp_times)?;
     Ok(())
 }
-fn serial_reader(mut port: Box<dyn SerialPort>,vdcp_times:&AtomicCell<Vec<u16>>) -> Result<(), std::io::Error> {
+fn serial_reader(
+    mut port: Box<dyn SerialPort>,
+    vdcp_times: Receiver<Vec<u16>>,
+) -> Result<(), std::io::Error> {
     //currently this just keeps reading till it finds a beginning of message command
-    
+    let mut latest_times: Vec<u16> = vec![0; 10]; //todo: setting this with a random number could result in trying to access a time out of range
     loop {
-        //todo: this code is ugly as. but i can't use load to get the var becuase vec isn't able to bopied, only cloned
         //we have to unwrap the thread safe atomic cell and read
-        let times= vdcp_times.take(); 
-        vdcp_times.store(times.clone());
+        let times = vdcp_times.try_iter();
+        match times.last() {
+            Some(x) => {
+                let port_name = &*port.name().unwrap_or_default();
+                info!("Got new times data {:?} for port {:}", &x, port_name);
+                latest_times = x;
+            }
+            _ => (),
+        }
 
-        match handle_incoming_data(&mut port,&times) {
+        match handle_incoming_data(&mut port, &latest_times) {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => continue,
                 _ => warn!("message read failed becuase:{0}", e),
@@ -130,7 +144,7 @@ fn serial_reader(mut port: Box<dyn SerialPort>,vdcp_times:&AtomicCell<Vec<u16>>)
         thread::sleep(std::time::Duration::from_millis(5));
     }
 }
-fn old_loop(mut port: Box<dyn SerialPort>,vdcp_times:&Vec<u16>) -> Result<(), Box<dyn Error>> {
+fn old_loop(mut port: Box<dyn SerialPort>, vdcp_times: &Vec<u16>) -> Result<(), Box<dyn Error>> {
     //=====Try to read the beginning of message byte=======
     let mut buf = [0u8; 1];
     let read = port.read(&mut buf)?;
@@ -181,7 +195,7 @@ fn old_loop(mut port: Box<dyn SerialPort>,vdcp_times:&Vec<u16>) -> Result<(), Bo
                     //=====Give the message to the vdcp command runner=====
                     //TODO: it might be worth starting a new thread here
 
-                    let response = vdcp::Run_Command(msg,vdcp_times);
+                    let response = vdcp::Run_Command(msg, vdcp_times);
                     port.write_all(&response)?;
                 }
             } else {

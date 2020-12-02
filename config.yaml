@@ -1,0 +1,2 @@
+---
+ports: [{ port: "/dev/pts/3", name: "test" ,segments:["first","second","third","fourth"] }]

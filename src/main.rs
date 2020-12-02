@@ -3,18 +3,14 @@
 extern crate rocket;
 use crossbeam::atomic::AtomicCell;
 use env::args;
-use std::{
-    env, 
-    
-    thread,
-};
+use std::{env, sync::mpsc::Sender, thread};
 mod vdcp;
 use flexi_logger::*;
 use log::*;
 mod serial;
 mod web_server;
-pub struct TimesDB(Vec<AtomicCell<Vec<u16>>>);
-
+mod config;
+use web_server::TimesUpdaters;
 fn setup_logging() {
     let res = Logger::with_str("info")
         .log_target(LogTarget::File)
@@ -28,36 +24,68 @@ fn setup_logging() {
     }
 }
 
-
 fn main() {
+    let conf:config::Config=confy::load_path("./config.yaml").unwrap();
     setup_logging();
-    let a: Vec<String> = args().collect();
-    info!("got {:?} args", a);
+   
+    info!("got {:?} config", conf);
     //This vector stores all the times and is written to by the webserver and read from by the vdcp
     //4 segements
     //one vec is created per port name
-    let vector=(0..a.len()-1).map(|_|AtomicCell::new(vec![0u16;4]) ).collect::<Vec<AtomicCell<Vec<u16>>>>();
-    let times_db:TimesDB = TimesDB(vector);
-
-    let rocket_server=web_server::start_server( times_db);
+    let (senders, mut receivers): (Vec<_>, Vec<_>) = (0..conf.ports.len())
+        .map(|_| std::sync::mpsc::sync_channel::<Vec<u16>>(100))
+        .unzip();
+    let rocket_server=web_server::start_server(conf.clone(),senders);
+    
     //We now need a refernce to the times_db given to the webserver
-    let times_db=rocket_server.state::<TimesDB>().expect("webserver did not return times-db state, cannot contuine without timesdb");
+   
+    let mut threads:Vec<_>= receivers
+        .drain(..)
+        .zip(conf.ports)
+        .map(|(rec, port)| {
+            thread::spawn(move || {
+                info!("spawing port monitoring thread");
+                serial::start(port.port, rec)
+                    .expect("Completly failed interacting with serial port")
+            })
+        }).collect();
+        
+    //skips the first irrelivant arg and iterates over them giving each serial reader its own port and id
+    /* for (i,recv) in receivers.drain(..).enumerate() {
+    //let com=&a[i];
+    let a=a[i].clone();
+    thread::spawn(move ||{ serial::start(a, recv)
+        .expect("Completly failed interacting with serial port")});
+    } */
+    
+    rocket_server.launch();
+    for thread in threads{
+        thread.join();
+    }
+      
+    
+    
+    /* crossbeam::thread::scope(|s| {
 
-    crossbeam::thread::scope(|s| {  
-        match a.len() {
-            x if x > 2 => {
-                //skips the first irrelivant arg and iterates over them giving each serial reader its own port and id
-                for i in 1..a.len() {
-                    let com=&a[i];
-                    s.spawn(move |_|{ serial::start(com, &times_db.0[i-1])
-                        .expect("Completly failed interacting with serial port")});
-                    }
+    let rocket_server=web_server::start_server(senders);
+    // let times_db=rocket_server.state::<TimesDB>().expect("webserver did not return times-db state, cannot contuine without timesdb");
+    rocket_server.launch();
+    match a.len() {
+        x if x > 2 => {
+            //skips the first irrelivant arg and iterates over them giving each serial reader its own port and id
+            for i in 1..a.len() {
+                let com=&a[i];
+
+                s.spawn( |_|{ serial::start(com, receivers[i])
+                    .expect("Completly failed interacting with serial port")});
                 }
-                
-                _ => info!("Command should be:'VDCP 'Port name1' 'portname2' 'portname3' etc etc'"),
-                
             }
-        }).expect("Failed running serial threads");
+
+            _ => info!("Command should be:'VDCP 'Port name1' 'portname2' 'portname3' etc etc'"),
+
+        }
+
+    }).expect("Failed running serial threads"); */
 
     info!("finish");
 }
