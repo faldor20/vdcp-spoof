@@ -56,7 +56,7 @@ pub fn get_commands()->Vec<Command> {
 
     let port_status: Command = Command::new("port_status", 0x3, 0x05, |_, _| {
         //
-        (vec![0x5, 0x0, 0x0, 0x0, 0x01, 0x01])
+        vec![0x5, 0x0, 0x0, 0x0, 0x01, 0x01]
         
     });
     let select_port: Command = Command::new("select_port", 0x2, 0x22, |_, _| (vec![0x04])); //?NOTE this selects a specific port for playing
@@ -65,7 +65,7 @@ pub fn get_commands()->Vec<Command> {
     let play: Command = Command::new("play", 0x1, 0x01, play); //TODO: my sample from the logs desn't show play as sending a specific port.
     let stop: Command = Command::new("stop", 0x1, 0x00, stop); //TODO: check if we even need to stop
     let id_request: Command = Command::new("id_request", 0xb, 0x16, |_, _| {
-        (vec![0xb0, 0x96, 0x01, 0x00, 00])
+        vec![0xb0, 0x96, 0x01, 0x00, 00]
     }); //This just returns 01 to confirm the clip exists
     let commands = vec![
         id_request,

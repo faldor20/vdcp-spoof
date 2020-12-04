@@ -2,12 +2,12 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 use mpsc::SyncSender;
 
-use rocket::{error::LaunchError, State};
+use rocket::{State};
 use rocket_cors::CorsOptions;
-use std::{self, collections::HashMap,  sync::{Mutex, mpsc::{self, Sender}}};
+use std::{self, collections::HashMap,  sync::{ mpsc::{self}}};
 use rocket_contrib::json::Json;
 use serde::{Deserialize,Serialize};
-use log::info;
+use log::{error, info};
 use super::config::Config;
 
 
@@ -27,7 +27,10 @@ fn times(times_db:State< TimesUpdaters>,vdcp_times:Json<VDCPTimes>) -> &'static 
     for time in &vdcp_times.times{
         let i:usize=time.0.clone().into();
         
-        times_db[i].send(time.1.clone());
+        match times_db[i].send(time.1.clone()) {
+            Err(e)=>{error!("Failed sending times to thread {:}",e)},
+            _=>()
+        }
     }
     info!("got sent times from website. Times: {:?}",vdcp_times.times);
     "set data"
@@ -39,7 +42,7 @@ fn ports(conf:State<Config>) -> Json<Config> {
     Json(conf.clone())
 }
 
-pub fn start_server(config:Config,times_db: TimesUpdaters ) -> (rocket::Rocket){
+pub fn start_server(config:Config,times_db: TimesUpdaters ) -> rocket::Rocket{
     let mut times= VDCPTimes{times:HashMap::new()};
     times.times.insert(1, vec![33u16;3]);
     let data=serde_json::to_string_pretty(&times).expect("failed serializing test");

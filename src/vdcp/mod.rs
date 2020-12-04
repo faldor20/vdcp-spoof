@@ -1,7 +1,5 @@
-use std::{error::Error, str::from_utf8};
 
 use log::*;
-use modular_bitfield::prelude::*;
 use types::*;
 
 use responses::unknown_command;
@@ -47,7 +45,7 @@ e.Byte time = .286 msec.
 fn checksum(bytes: &Vec<u8>) -> u8 {
     let sum: u32 = bytes.iter().fold(0u32, |x, y| {
         let a: u32 = y.clone().into();
-        (a + x)
+        a + x
     });
   
     //we need only the least significan't byte
@@ -119,7 +117,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>) -
     unknown_command(message)
 }
 
-pub fn Run_Command(msg: Message, clip_times: &Vec<u16>) -> Vec<u8> {
+pub fn handle_command(msg: Message, clip_times: &Vec<u16>) -> Vec<u8> {
 
     unsafe {
         info!(

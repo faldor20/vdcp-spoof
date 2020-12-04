@@ -1,16 +1,13 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #[macro_use]
 extern crate rocket;
-use crossbeam::atomic::AtomicCell;
-use env::args;
-use std::{env, sync::mpsc::Sender, thread};
+use std::thread;
 mod vdcp;
 use flexi_logger::*;
 use log::*;
+mod config;
 mod serial;
 mod web_server;
-mod config;
-use web_server::TimesUpdaters;
 fn setup_logging() {
     let res = Logger::with_str("info")
         .log_target(LogTarget::File)
@@ -25,9 +22,9 @@ fn setup_logging() {
 }
 
 fn main() {
-    let conf:config::Config=confy::load_path("./config.yaml").unwrap();
+    let conf: config::Config = confy::load_path("./config.yaml").unwrap();
     setup_logging();
-   
+
     info!("got {:?} config", conf);
     //This vector stores all the times and is written to by the webserver and read from by the vdcp
     //4 segements
@@ -35,11 +32,11 @@ fn main() {
     let (senders, mut receivers): (Vec<_>, Vec<_>) = (0..conf.ports.len())
         .map(|_| std::sync::mpsc::sync_channel::<Vec<u16>>(100))
         .unzip();
-    let rocket_server=web_server::start_server(conf.clone(),senders);
-    
+    let rocket_server = web_server::start_server(conf.clone(), senders);
+
     //We now need a refernce to the times_db given to the webserver
-   
-    let mut threads:Vec<_>= receivers
+
+    let threads: Vec<_> = receivers
         .drain(..)
         .zip(conf.ports)
         .map(|(rec, port)| {
@@ -48,8 +45,9 @@ fn main() {
                 serial::start(port.port, rec)
                     .expect("Completly failed interacting with serial port")
             })
-        }).collect();
-        
+        })
+        .collect();
+
     //skips the first irrelivant arg and iterates over them giving each serial reader its own port and id
     /* for (i,recv) in receivers.drain(..).enumerate() {
     //let com=&a[i];
@@ -57,14 +55,17 @@ fn main() {
     thread::spawn(move ||{ serial::start(a, recv)
         .expect("Completly failed interacting with serial port")});
     } */
-    
+
     rocket_server.launch();
-    for thread in threads{
-        thread.join();
+    for thread in threads {
+        match thread.join() {
+            Err(e) => {
+                error!("thread erroed with {:?}", e)
+            }
+            _ => (),
+        }
     }
-      
-    
-    
+
     /* crossbeam::thread::scope(|s| {
 
     let rocket_server=web_server::start_server(senders);
