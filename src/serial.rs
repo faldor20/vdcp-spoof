@@ -4,7 +4,8 @@ use crossbeam::atomic::AtomicCell;
 use log::*;
 use serialport::prelude::*;
 
-use crate::vdcp::{self, Message};
+
+use crate::vdcp::{self, types::{Message,ByteNibbles}};
 
 pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>) -> Result<(), Box<dyn Error>> {
     info!("starting serial connection at com port:{0}", com);
@@ -47,7 +48,7 @@ fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8) -> Result<Messag
     //TODO: if this is often off by one it measn there is not allways a checksum.
     } else {
         //=====convert the bytes into a message object=====
-        let nibbles = vdcp::ByteNibbles {
+        let nibbles = ByteNibbles {
             byte: message_buf[0],
         };
         let mut data = message_buf.split_off(2);
@@ -182,7 +183,7 @@ fn old_loop(mut port: Box<dyn SerialPort>, vdcp_times: &Vec<u16>) -> Result<(), 
                 //TODO: if this is often off by one it measn there is not allways a checksum.
                 } else {
                     //=====convert the bytes into a message object=====
-                    let nibbles = vdcp::ByteNibbles {
+                    let nibbles = ByteNibbles {
                         byte: message_buf[0],
                     };
                     let mut data = message_buf.split_off(2);
