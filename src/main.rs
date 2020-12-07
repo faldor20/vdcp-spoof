@@ -12,6 +12,7 @@ use vdcp::types::{PortConfig, PortStatus};
 fn setup_logging() {
     let res = Logger::with_str("info")
         .log_target(LogTarget::File)
+        .format(flexi_logger::colored_opt_format)
         .directory("./Logs/")
         .duplicate_to_stdout(Duplicate::All) // write logs to file
         .duplicate_to_stderr(Duplicate::Warn) // print warnings and errors also to the console
