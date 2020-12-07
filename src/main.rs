@@ -45,7 +45,7 @@ fn main() {
             thread::spawn(move || {
                 info!("spawing port monitoring thread");
                 
-                let config=PortConfig{number:port.number,port_status:PortStatus::Idle};
+                let config=PortConfig{number:port.number,port_status:PortStatus::Idle,clip_status:vdcp::types::ClipStatus::Clips};
                 serial::start(port.port, rec,config)
                     .expect("Completly failed interacting with serial port")
             })

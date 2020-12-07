@@ -35,10 +35,20 @@ pub enum PortStatus{
     Playing=0x04,
 
 }
+#[derive(Clone)]
+#[repr(u8)]
+pub enum ClipStatus{
+    Clips=0x01,
+    NoClips=0x00,
+
+}
+
 pub struct PortConfig{
  pub number:u8,
  pub port_status:PortStatus,
+ pub clip_status:ClipStatus
 }
+
 pub enum Response{
     Message(Vec<u8>),
     Simple(Vec<u8>)
