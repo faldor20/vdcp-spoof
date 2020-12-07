@@ -3,17 +3,19 @@ use std::{error::Error, str::from_utf8};
 use super::types::*;
 use log::*;
 
-fn play(message: &Message, _: &Vec<u16>) -> Vec<u8> {
+fn play(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Vec<u8> {
     info!("Playing port");
+    config.port_status = PortStatus::Playing;
     vec![0x04]
 }
-fn active_id(message: &Message, _: &Vec<u16>) -> Vec<u8> {
+fn active_id(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Vec<u8> {
     vec![0x04]
 }
-fn stop(message: &Message, _: &Vec<u16>) -> Vec<u8> {
+fn stop(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Vec<u8> {
+    config.port_status = PortStatus::Idle;
     vec![0x04]
 }
-fn size_request(message: &Message, clip_times: &Vec<u16>) -> Vec<u8> {
+fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfig) -> Vec<u8> {
     let clip_name = from_utf8(&message.data).unwrap_or("failed to convert from bytes to utf8");
     info!("size requested for clip {:?}", clip_name);
     let stuff = || -> Result<Vec<u8>, Box<dyn Error>> {
@@ -46,26 +48,49 @@ pub fn unknown_command(msg: &Message) -> Vec<u8> {
             msg.byte_count, msg.command1.byte, msg.command_code, msg.data, msg.checksum
         );
     }
-    vec![0x05,0x0]
+    vec![0x05, 0x0]
 }
-pub fn get_commands()->Vec<Command> {
+pub fn get_commands() -> Vec<Command> {
     let size_request: Command = Command::new("size_request", 0xb, 0x14, size_request);
-    let system_status: Command =
-        Command::new("system_status", 0x3, 0x10, |_, _| (vec![0x02, 0x00, 0x1f])); //?NOTE: The return here is the number of ids stored by the vdcp server. i think it can remain constant and simply be the max number of clips we ever have
-    let open_port: Command = Command::new("open_port", 0x3, 0x01, |_, _| (vec![0x01]));
+    let system_status: Command = Command::new("system_status", 0x3, 0x10, |_, _, _| {
+        (vec![0x02, 0x00, 0x1f])
+    }); //?NOTE: The return here is the number of ids stored by the vdcp server. i think it can remain constant and simply be the max number of clips we ever have
 
-    let port_status: Command = Command::new("port_status", 0x3, 0x05, |_, _| {
-        //
-        vec![0x5, 0x0, 0x0, 0x0, 0x01, 0x01]
-        
+    let open_port: Command = Command::new("open_port", 0x3, 0x01, |_, _, _| (vec![0x01])); // opened:01 denied:00
+    let close_port: Command = Command::new("close_port", 0x2, 0x21, |_, _, _| (vec![0x04])); // opened:01 denied:00
+
+    let port_status: Command = Command::new("port_status", 0x3, 0x05, |_, _, config| {
+        // status that may be of use:
+        //vec![0x5, 0x0, 0x0, 0x0, 0x0, 0x80]    | device has jsut been started. needs ports to be opened
+        //vec![0x5, 0x01, 0x01, 0x0, 0x0, 0x0]   | port one selected and idle
+        //s1,2 is the port number
+        //|bitmap|s1,1|s1,2|s3,1| ,2 |  ,3|
+        vec![
+            0x5,
+            config.port_status.clone() as u8,
+            config.number,
+            0x0,
+            0x0,
+            0x0,
+        ]
     });
-    let select_port: Command = Command::new("select_port", 0x2, 0x22, |_, _| (vec![0x04])); //?NOTE this selects a specific port for playing
-    let cue_with_data: Command = Command::new("cue_with_data", 0xa, 0x25, |_, _| (vec![0x04])); //the data is discarded becuase we don't need to cue
+    let select_port: Command = Command::new("select_port", 0x2, 0x22, |_, _, _| (vec![0x04])); //?NOTE this selects a specific port for playing
+    let cue_with_data: Command = Command::new("cue_with_data", 0xa, 0x25, |msg, _, config| {
+        if msg.data[0]!=config.number{
+        warn!("Requested to open port {:} but the configured port if {:} cahne either the vdcp port number or serial port",msg.data[0],config.number);
+        }
+        config.port_status = PortStatus::Cued;
+        vec![0x04]
+    }); //the data is discarded becuase we don't need to cue
     let active_id_request: Command = Command::new("active_id_request", 0x0b, 0x07, active_id); //TODO: i need to find out what this command is for
     let play: Command = Command::new("play", 0x1, 0x01, play); //TODO: my sample from the logs desn't show play as sending a specific port.
     let stop: Command = Command::new("stop", 0x1, 0x00, stop); //TODO: check if we even need to stop
-    let id_request: Command = Command::new("id_request", 0xb, 0x16, |_, _| {
-        vec![0xb0, 0x96, 0x01, 0x00, 00]
+    let id_request: Command = Command::new("id_request", 0xb, 0x16, |message, _, _| {
+        match String::from_utf8(message.data.clone()) {
+            Ok(a) => info!("Got ID request for file : {:}", a),
+            _ => (),
+        }
+        vec![0x01, 0x00,]
     }); //This just returns 01 to confirm the clip exists
     let commands = vec![
         id_request,
@@ -77,7 +102,18 @@ pub fn get_commands()->Vec<Command> {
         cue_with_data,
         active_id_request,
         play,
+        close_port,
         stop,
     ];
     return commands;
+    /*
+    Some potential port status states:
+    Not connected,
+    connected
+    cued
+    playing
+    stoped
+
+
+    */
 }
