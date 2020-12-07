@@ -5,9 +5,9 @@ use log::*;
 use serialport::prelude::*;
 
 
-use crate::vdcp::{self, types::{Message,ByteNibbles}};
+use crate::vdcp::{self, types::{ByteNibbles, Message, PortConfig}};
 
-pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>) -> Result<(), Box<dyn Error>> {
+pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>,mut config:PortConfig) -> Result<(), Box<dyn Error>> {
     info!("starting serial connection at com port:{0}", com);
     let port_settings = serialport::SerialPortSettings {
         baud_rate: 38400,
@@ -18,7 +18,8 @@ pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>) -> Result<(), Box<dyn 
         timeout: Duration::from_millis(1),
     };
     let port = serialport::open_with_settings(&com, &port_settings)?;
-    serial_reader(port, vdcp_times)?;
+    
+    serial_reader(port, vdcp_times,config)?;
 
     Ok(())
 }
@@ -70,9 +71,9 @@ fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8) -> Result<Messag
 fn handle_message(
     port: &mut Box<dyn SerialPort>,
     msg: Message,
-    vdcp_times: &Vec<u16>,
+    vdcp_times: &Vec<u16>,config:&mut PortConfig
 ) -> Result<(), io::Error> {
-    let response = vdcp::handle_command(msg, vdcp_times);
+    let response = vdcp::handle_command(msg, vdcp_times,config);
     info!("(hex)sending response : {:x?}",response);
     port.write_all(&response)?;
     Ok(())
@@ -105,7 +106,7 @@ fn read_start(port: &mut Box<dyn SerialPort>) -> Result<(), io::Error> {
 ///Attempts to read data from the port and then run a command associated with it
 fn handle_incoming_data(
     port: &mut Box<dyn SerialPort>,
-    vdcp_times: &Vec<u16>,
+    vdcp_times: &Vec<u16>,config:&mut PortConfig
 ) -> Result<(), io::Error> {
     //TODO: make it so taht naything after the readstart causing a faulure sends a NAK back to the sender
     read_start(port)?; //delay after if fail
@@ -116,12 +117,12 @@ fn handle_incoming_data(
 
     let byte_count = read_length(port)?;
     let message = read_message(port, byte_count)?;
-    handle_message(port, message, vdcp_times)?;
+    handle_message(port, message, vdcp_times,config)?;
     Ok(())
 }
 fn serial_reader(
     mut port: Box<dyn SerialPort>,
-    vdcp_times: Receiver<Vec<u16>>,
+    vdcp_times: Receiver<Vec<u16>>,mut config:PortConfig
 ) -> Result<(), std::io::Error> {
     info!("About to start read loop");
     //currently this just keeps reading till it finds a beginning of message command
@@ -138,7 +139,7 @@ fn serial_reader(
             _ => (),
         }
 
-        match handle_incoming_data(&mut port, &latest_times) {
+        match handle_incoming_data(&mut port, &latest_times,& mut config) {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => continue,
                 _ => warn!("message read failed becuase: {0}", e),

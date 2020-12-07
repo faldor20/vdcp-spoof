@@ -27,16 +27,28 @@ pub struct Message {
     pub data: Vec<u8>,
 }
 
+#[derive(Clone)]
+#[repr(u8)]
+pub enum PortStatus{
+    Idle=0x01,
+    Cued=0x80,
+    Playing=0x04,
+
+}
+pub struct PortConfig{
+ pub number:u8,
+ pub port_status:PortStatus,
+}
 pub struct Command {
    pub name: String,
    pub command_type: Nibble,
    pub command_code: u8,
-   pub action: Box<dyn Fn(&Message, &Vec<u16>) -> Vec<u8>>,
+   pub action: Box<dyn Fn(&Message, &Vec<u16>,&mut PortConfig) -> Vec<u8>>,
 }
 impl Command {
     pub fn new<T>(name: &str, command_type: u8, command_code: u8, action: T) -> Command
     where
-        T: Fn(&Message, &Vec<u16>) -> Vec<u8> + 'static,
+        T: Fn(&Message, &Vec<u16>,&mut PortConfig) -> Vec<u8> + 'static,
     {
         //let a:|Message|->()=|x:Message|{return;};
 

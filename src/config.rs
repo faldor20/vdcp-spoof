@@ -11,6 +11,7 @@ impl ::std::default::Default for Config {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct VDCPPort {
     pub port: String,
+    pub number:u8,
     pub name: String,
     pub segments:Vec<String>
 }

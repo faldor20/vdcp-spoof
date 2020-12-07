@@ -8,6 +8,7 @@ use log::*;
 mod config;
 mod serial;
 mod web_server;
+use vdcp::types::{PortConfig, PortStatus};
 fn setup_logging() {
     let res = Logger::with_str("info")
         .log_target(LogTarget::File)
@@ -42,7 +43,9 @@ fn main() {
         .map(|(rec, port)| {
             thread::spawn(move || {
                 info!("spawing port monitoring thread");
-                serial::start(port.port, rec)
+                
+                let config=PortConfig{number:port.number,port_status:PortStatus::Idle};
+                serial::start(port.port, rec,config)
                     .expect("Completly failed interacting with serial port")
             })
         })

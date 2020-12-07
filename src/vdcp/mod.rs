@@ -99,7 +99,7 @@ fn post_processing(message: &Message, mut data: Vec<u8>) -> Vec<u8> {
     }
 }
 
-fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>) -> Vec<u8> {
+fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,config:&mut PortConfig) -> Vec<u8> {
     for command in commands {
         //we have to use an unsafe block becuase we access a union to get our nibbles from a byte
         unsafe {
@@ -109,7 +109,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>) -
                 info!("Running command: '{:}'", command.name.to_uppercase());
                 let func = &*command.action;
 
-                let a = func(&message, clip_times);
+                let a = func(&message, clip_times,config);
                 return a;
             }
         }
@@ -117,7 +117,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>) -
     unknown_command(message)
 }
 
-pub fn handle_command(msg: Message, clip_times: &Vec<u16>) -> Vec<u8> {
+pub fn handle_command(msg: Message, clip_times: &Vec<u16>,config:&mut PortConfig) -> Vec<u8> {
 
     unsafe {
         info!(
@@ -133,7 +133,7 @@ pub fn handle_command(msg: Message, clip_times: &Vec<u16>) -> Vec<u8> {
     }
 
     let commands = responses::get_commands();
-    let return_data = run_command(&msg, &commands, clip_times);
+    let return_data = run_command(&msg, &commands, clip_times,config);
     let return_message = post_processing(&msg, return_data);
     return return_message;
 }

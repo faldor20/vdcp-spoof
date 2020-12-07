@@ -1,2 +1,2 @@
 ---
-ports: [{ port: "/dev/pts/3", name: "test" ,segments:["first","second","third","fourth"] }]
+ports: [{ port: "/dev/pts/3", name: "test",number: 04 ,segments:["first","second","third","fourth"] }]
