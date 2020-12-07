@@ -24,9 +24,9 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
 
         //if we take a utf8 number char byte and subtract hex 30 from it it becomes the number the charctor is
         let index: usize = (last - 0x30) as usize;
-
+        
         let a = clip_times
-            .get(index)
+            .get(index-1)
             .ok_or("clip time requested didn't exist")?;
         //This gets our hours and then seconds.
         let minutes = a / 60u16;
@@ -38,7 +38,7 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
 
     stuff().unwrap_or_else(|err: Box<dyn Error>| {
         error!("Failed processing size request. Reason: {:?}", err);
-        vec![0x05]
+        vec![0x0,0,0,0]
     })
 }
 pub fn unknown_command(msg: &Message) -> Vec<u8> {
@@ -48,7 +48,7 @@ pub fn unknown_command(msg: &Message) -> Vec<u8> {
             msg.byte_count, msg.command1.byte, msg.command_code, msg.data, msg.checksum
         );
     }
-    vec![0x05, 0x0]
+    vec![0x05,0x0]
 }
 pub fn get_commands() -> Vec<Command> {
     let size_request: Command = Command::new("size_request", 0xb, 0x14, size_request);
