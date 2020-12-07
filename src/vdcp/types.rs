@@ -39,16 +39,29 @@ pub struct PortConfig{
  pub number:u8,
  pub port_status:PortStatus,
 }
+pub enum Response{
+    Message(Vec<u8>),
+    Simple(Vec<u8>)
+
+    
+}
+impl Into<Vec<u8>> for Response{
+  fn into(self)->Vec<u8>{  match self {
+        Response::Message(a)=>a,
+        Response::Simple(a)=>a
+    }
+}
+}
 pub struct Command {
    pub name: String,
    pub command_type: Nibble,
    pub command_code: u8,
-   pub action: Box<dyn Fn(&Message, &Vec<u16>,&mut PortConfig) -> Vec<u8>>,
+   pub action: Box<dyn Fn(&Message, &Vec<u16>,&mut PortConfig) ->Response >,
 }
 impl Command {
     pub fn new<T>(name: &str, command_type: u8, command_code: u8, action: T) -> Command
     where
-        T: Fn(&Message, &Vec<u16>,&mut PortConfig) -> Vec<u8> + 'static,
+        T: Fn(&Message, &Vec<u16>,&mut PortConfig) -> Response + 'static,
     {
         //let a:|Message|->()=|x:Message|{return;};
 

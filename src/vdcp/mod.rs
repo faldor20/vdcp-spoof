@@ -70,16 +70,15 @@ fn checksum(bytes: &Vec<u8>) -> u8 {
 ///     a. Summing the command and data bytes
 ///     b. Taking the least significant byte of the result
 ///     c. get the 2's compliment of that.
-fn post_processing(message: &Message, mut data: Vec<u8>) -> Vec<u8> {
+fn post_processing(message: &Message,  response: Response) -> Vec<u8> {
     // let base=-vec![0x02,command,commad2];
     // Vec::append(data)
         unsafe {
-            match message.command1.byte {
-        0x0 | 0x10 | 0x20 => {
-            //TODO: make sure this is correct
-            return vec![ data[0]];
+            match response {
+        Response::Simple(e) => {
+            return e;
         }
-        _ => {
+        Response::Message(mut data) => {
                 let command_1=message.command1.byte;
                 //we + 0x80 to set the most significant bit to 1
                 let mut body: Vec<u8> = vec![command_1 , message.command_code + 0x80];
@@ -99,7 +98,7 @@ fn post_processing(message: &Message, mut data: Vec<u8>) -> Vec<u8> {
     }
 }
 
-fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,config:&mut PortConfig) -> Vec<u8> {
+fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,config:&mut PortConfig) -> Response {
     for command in commands {
         //we have to use an unsafe block becuase we access a union to get our nibbles from a byte
         unsafe {
@@ -110,7 +109,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,co
                 let func = &*command.action;
 
                 let a = func(&message, clip_times,config);
-                return a;
+              return a;
             }
         }
     }
