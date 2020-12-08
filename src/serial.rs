@@ -1,8 +1,9 @@
-use std::{self, error::Error, io, sync::mpsc::Receiver, thread, time::Duration};
+use std::{self, error::Error, io, sync::mpsc::Receiver, thread, time::{Duration, Instant}};
 
 use crossbeam::atomic::AtomicCell;
 use log::*;
 use serialport::prelude::*;
+use vdcp::types::ClipStatus::NoClips;
 
 
 use crate::vdcp::{self, types::{ByteNibbles, Message, PortConfig}};
@@ -120,6 +121,22 @@ fn handle_incoming_data(
     handle_message(port, message, vdcp_times,config)?;
     Ok(())
 }
+
+fn resend_times(config:& mut PortConfig)->Instant{
+config.clip_status=NoClips;
+Instant::now()
+
+}
+fn check_timeout(timeout:&mut Option<Instant>,timeout_length:&Duration,config:&mut PortConfig){
+    match timeout {
+        Some(x)=>{if Instant::now().duration_since(*x)>*timeout_length{
+            *timeout=None;
+            config.clip_status=vdcp::types::ClipStatus::Clips
+        }},
+        _=>()
+    }
+}
+
 fn serial_reader(
     mut port: Box<dyn SerialPort>,
     vdcp_times: Receiver<Vec<u16>>,mut config:PortConfig
@@ -127,18 +144,24 @@ fn serial_reader(
     info!("About to start read loop");
     //currently this just keeps reading till it finds a beginning of message command
     let mut latest_times: Vec<u16> = vec![0; 10]; //todo: setting this with a random number could result in trying to access a time out of range
+    let mut timeout:Option<Instant>=Option::None;
+    let timeout_length= Duration::from_secs(20);
     loop {
+
+        check_timeout(&mut timeout,&timeout_length,& mut config);
+        
         //we have to unwrap the thread safe atomic cell and read
         let times = vdcp_times.try_iter();
         match times.last() {
             Some(x) => {
+                
                 let port_name = &*port.name().unwrap_or_default();
                 info!("Got new times data {:?} for port {:}", &x, port_name);
                 latest_times = x;
+                resend_times(&mut config);
             }
             _ => (),
         }
-
         match handle_incoming_data(&mut port, &latest_times,& mut config) {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => continue,

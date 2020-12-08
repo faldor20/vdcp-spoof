@@ -58,8 +58,8 @@ pub fn unknown_command(msg: &Message) -> Response {
 }
 pub fn get_commands() -> Vec<Command> {
     let size_request: Command = Command::new("size_request", 0xb, 0x14, size_request);
-    let system_status: Command = Command::new("system_status", 0x3, 0x10, |_, _, _| {
-        msg(vec![0x02, 0x00, 0x1f])
+    let system_status: Command = Command::new("system_status", 0x3, 0x10, |_, _, conf| {
+        msg(vec![0x02, 0x00, conf.clip_status.clone() as u8])
     }); //?NOTE: The return here is the number of ids stored by the vdcp server. i think it can remain constant and simply be the max number of clips we ever have
 
     let open_port: Command = Command::new("open_port", 0x3, 0x01, |_, _, _| (msg(vec![0x01]))); // opened:01 denied:00
