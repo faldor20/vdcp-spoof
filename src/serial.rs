@@ -1,14 +1,14 @@
 use std::{self, error::Error, io, sync::mpsc::Receiver, thread, time::{Duration, Instant}};
 
-use crossbeam::atomic::AtomicCell;
+
 use log::*;
 use serialport::prelude::*;
 use vdcp::types::ClipStatus::NoClips;
 
 
-use crate::vdcp::{self, types::{ByteNibbles, Message, PortConfig}};
+use crate::{ vdcp::{self, types::{ByteNibbles, Message, PortConfig}}};
 
-pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>,mut config:PortConfig) -> Result<(), Box<dyn Error>> {
+pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>,config:PortConfig) -> Result<(), Box<dyn Error>> {
     info!("starting serial connection at com port:{0}", com);
     let port_settings = serialport::SerialPortSettings {
         baud_rate: 38400,

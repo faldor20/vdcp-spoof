@@ -44,7 +44,7 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
 
     stuff().unwrap_or_else(|err: Box<dyn Error>| {
         error!("Failed processing size request. Reason: {:?}", err);
-        msg( vec![0x0, 0, 0, 0])
+        msg(vec![0x0, 0, 0, 0])
     })
 }
 pub fn unknown_command(msg: &Message) -> Response {
@@ -96,7 +96,7 @@ pub fn get_commands() -> Vec<Command> {
             Ok(a) => info!("Got ID request for file : {:}", a),
             _ => (),
         }
-      msg(  vec![0x01, 0x00])
+        msg(vec![0x01, 0x00])
     }); //This just returns 01 to confirm the clip exists
     let commands = vec![
         id_request,
