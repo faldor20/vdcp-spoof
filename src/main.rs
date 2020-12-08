@@ -44,9 +44,15 @@ fn main() {
         .map(|(rec, port)| {
             thread::spawn(move || {
                 info!("spawing port monitoring thread");
-                
-                let config=PortConfig{number:port.number,port_status:PortStatus::Idle,clip_status:vdcp::types::ClipStatus::Clips};
-                serial::start(port.port, rec,config)
+
+                let config = PortConfig {
+                    number: port.number,
+                    port_status: PortStatus::Idle,
+                    clip_status: vdcp::types::ClipStatus::Clips,
+                    cued_number:0,
+                    clips:port.segments.iter().map(|a|{a.clone().into_bytes()}).collect(),
+                };
+                serial::start(port.port, rec, config)
                     .expect("Completly failed interacting with serial port")
             })
         })

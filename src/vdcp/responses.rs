@@ -15,10 +15,18 @@ fn play(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
     simp(vec![0x04])
 }
 fn active_id(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
-    simp(vec![0x04])
+    match config.port_status {
+        PortStatus::Idle => return msg(vec![0x0]),
+        _ => {
+            let mut prefix = vec![0x1];
+            prefix.append(&mut config.get_cued_clip().clone());
+            msg(prefix)
+        }
+    }
 }
 fn stop(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
     config.port_status = PortStatus::Idle;
+    config.next_clip();
     simp(vec![0x04])
 }
 fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfig) -> Response {
@@ -89,7 +97,10 @@ pub fn get_commands() -> Vec<Command> {
         simp(vec![0x04])
     }); //?NOTE this selects a specific port for playing
     let cue_with_data: Command = Command::new("cue_with_data", 0xa, 0x25, |msg, _, config| {
-        info!("Cueing clip: {:}",std::str::from_utf8( &msg.data[0..6]).unwrap_or(""));
+        info!(
+            "Cueing clip: {:}",
+            std::str::from_utf8(&msg.data[0..6]).unwrap_or("")
+        );
         config.port_status = PortStatus::Cued;
         simp(vec![0x04])
     }); //the data is discarded becuase we don't need to cue
@@ -101,7 +112,7 @@ pub fn get_commands() -> Vec<Command> {
             Ok(a) => info!("Got ID request for file : {:}", a),
             _ => (),
         }
-        msg(vec![0x01, 0x00])
+        msg(vec![0x01, 0x00, 0x00]) //i don't know why this must be 3 bytes but it is what we see in the logs
     }); //This just returns 01 to confirm the clip exists
     let commands = vec![
         id_request,

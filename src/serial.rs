@@ -1,14 +1,26 @@
-use std::{self, error::Error, io, sync::mpsc::Receiver, thread, time::{Duration, Instant}};
-
+use std::{
+    self,
+    error::Error,
+    io,
+    sync::mpsc::Receiver,
+    thread,
+    time::{Duration, Instant},
+};
 
 use log::*;
 use serialport::prelude::*;
 use vdcp::types::ClipStatus::NoClips;
 
+use crate::vdcp::{
+    self,
+    types::{ByteNibbles, Message, PortConfig},
+};
 
-use crate::{ vdcp::{self, types::{ByteNibbles, Message, PortConfig}}};
-
-pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>,config:PortConfig) -> Result<(), Box<dyn Error>> {
+pub fn start(
+    com: String,
+    vdcp_times: Receiver<Vec<u16>>,
+    config: PortConfig,
+) -> Result<(), Box<dyn Error>> {
     info!("starting serial connection at com port:{0}", com);
     let port_settings = serialport::SerialPortSettings {
         baud_rate: 38400,
@@ -19,8 +31,8 @@ pub fn start(com: String, vdcp_times: Receiver<Vec<u16>>,config:PortConfig) -> R
         timeout: Duration::from_millis(1),
     };
     let port = serialport::open_with_settings(&com, &port_settings)?;
-    
-    serial_reader(port, vdcp_times,config)?;
+
+    serial_reader(port, vdcp_times, config)?;
 
     Ok(())
 }
@@ -72,10 +84,11 @@ fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8) -> Result<Messag
 fn handle_message(
     port: &mut Box<dyn SerialPort>,
     msg: Message,
-    vdcp_times: &Vec<u16>,config:&mut PortConfig
+    vdcp_times: &Vec<u16>,
+    config: &mut PortConfig,
 ) -> Result<(), io::Error> {
-    let response = vdcp::handle_command(msg, vdcp_times,config);
-    info!("(hex)sending response : {:x?}",response);
+    let response = vdcp::handle_command(msg, vdcp_times, config);
+    info!("(hex)sending response : {:x?}", response);
     port.write_all(&response)?;
     Ok(())
 }
@@ -107,7 +120,8 @@ fn read_start(port: &mut Box<dyn SerialPort>) -> Result<(), io::Error> {
 ///Attempts to read data from the port and then run a command associated with it
 fn handle_incoming_data(
     port: &mut Box<dyn SerialPort>,
-    vdcp_times: &Vec<u16>,config:&mut PortConfig
+    vdcp_times: &Vec<u16>,
+    config: &mut PortConfig,
 ) -> Result<(), io::Error> {
     //TODO: make it so taht naything after the readstart causing a faulure sends a NAK back to the sender
     read_start(port)?; //delay after if fail
@@ -118,51 +132,59 @@ fn handle_incoming_data(
 
     let byte_count = read_length(port)?;
     let message = read_message(port, byte_count)?;
-    handle_message(port, message, vdcp_times,config)?;
+    handle_message(port, message, vdcp_times, config)?;
     Ok(())
 }
 
-fn resend_times(config:& mut PortConfig)->Instant{
-config.clip_status=NoClips;
-Instant::now()
+fn resend_times(config: &mut PortConfig) -> Instant {
+    config.clip_status = NoClips;
+    info!("got new times, setting clips to 0 and waiting 20s");
+    Instant::now()
 
 }
-fn check_timeout(timeout:&mut Option<Instant>,timeout_length:&Duration,config:&mut PortConfig){
+fn check_timeout(
+    timeout: &mut Option<Instant>,
+    timeout_length: &Duration,
+    config: &mut PortConfig,
+) {
     match timeout {
-        Some(x)=>{if Instant::now().duration_since(*x)>*timeout_length{
-            *timeout=None;
-            config.clip_status=vdcp::types::ClipStatus::Clips
-        }},
-        _=>()
+        Some(x) => {
+            
+            if Instant::now().duration_since(*x) > *timeout_length {
+                info!("Timeout elapsed setting clips back to 1f");
+                *timeout = None;
+                config.clip_status = vdcp::types::ClipStatus::Clips
+            }
+        }
+        _ => (),
     }
 }
 
 fn serial_reader(
     mut port: Box<dyn SerialPort>,
-    vdcp_times: Receiver<Vec<u16>>,mut config:PortConfig
+    vdcp_times: Receiver<Vec<u16>>,
+    mut config: PortConfig,
 ) -> Result<(), std::io::Error> {
     info!("About to start read loop");
     //currently this just keeps reading till it finds a beginning of message command
     let mut latest_times: Vec<u16> = vec![0; 10]; //todo: setting this with a random number could result in trying to access a time out of range
-    let mut timeout:Option<Instant>=Option::None;
-    let timeout_length= Duration::from_secs(20);
+    let mut timeout: Option<Instant> = Option::None;
+    let timeout_length = Duration::from_secs(20);
     loop {
+        check_timeout(&mut timeout, &timeout_length, &mut config);
 
-        check_timeout(&mut timeout,&timeout_length,& mut config);
-        
         //we have to unwrap the thread safe atomic cell and read
         let times = vdcp_times.try_iter();
         match times.last() {
             Some(x) => {
-                
                 let port_name = &*port.name().unwrap_or_default();
                 info!("Got new times data {:?} for port {:}", &x, port_name);
                 latest_times = x;
-                resend_times(&mut config);
+                timeout=Some(resend_times(&mut config));
             }
             _ => (),
         }
-        match handle_incoming_data(&mut port, &latest_times,& mut config) {
+        match handle_incoming_data(&mut port, &latest_times, &mut config) {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => continue,
                 _ => warn!("message read failed becuase: {0}", e),
