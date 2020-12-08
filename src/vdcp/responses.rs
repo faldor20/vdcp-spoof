@@ -80,11 +80,16 @@ pub fn get_commands() -> Vec<Command> {
             0x0,
         ])
     });
-    let select_port: Command = Command::new("select_port", 0x2, 0x22, |_, _, _| (simp( vec![0x04]))); //?NOTE this selects a specific port for playing
+    let select_port: Command = Command::new("select_port", 0x2, 0x22, |message, _, config| {
+        info!(
+            "Request to select port {:} setting port number to that",
+            message.data[0]
+        );
+        config.number = message.data[0];
+        simp(vec![0x04])
+    }); //?NOTE this selects a specific port for playing
     let cue_with_data: Command = Command::new("cue_with_data", 0xa, 0x25, |msg, _, config| {
-        if msg.data[0] != config.number {
-            warn!("Requested to open port {:} but the configured port if {:} cahne either the vdcp port number or serial port",msg.data[0],config.number);
-        }
+        info!("Cueing clip: {:}",std::str::from_utf8( &msg.data[0..6]).unwrap_or(""));
         config.port_status = PortStatus::Cued;
         simp(vec![0x04])
     }); //the data is discarded becuase we don't need to cue
