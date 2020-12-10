@@ -62,7 +62,7 @@ pub fn unknown_command(msg: &Message) -> Response {
             msg.byte_count, msg.command1.byte, msg.command_code, msg.data, msg.checksum
         );
     }
-    simp(vec![0x05, 0x0])
+    simp(vec![0x05, 0x1])
 }
 pub fn get_commands() -> Vec<Command> {
     let size_request: Command = Command::new("size_request", 0xb, 0x14, size_request);
