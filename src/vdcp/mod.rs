@@ -5,6 +5,7 @@ use types::*;
 use responses::unknown_command;
 mod responses;
 pub mod types;
+use colored::*;
 /*
 *Implimentation notes:use std::{error::Error, str::from_utf8};
 
@@ -105,7 +106,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,co
             if message.command1.nibbles.n2() == command.command_type.data()
                 && message.command_code == command.command_code
             {
-                info!("Running command: '{:}'", command.name.to_uppercase());
+                info!("Running command: '{:}'", command.name.to_uppercase().yellow());
                 let func = &*command.action;
 
                 let a = func(&message, clip_times,config);
