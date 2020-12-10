@@ -104,20 +104,24 @@ pub fn get_commands() -> Vec<Command> {
         config.port_status = PortStatus::Cued;
         simp(vec![0x04])
     }); //the data is discarded becuase we don't need to cue
-    let active_id_request: Command = Command::new("active_id_request", 0x0b, 0x07, active_id); //TODO: i need to find out what this command is for
-    let play: Command = Command::new("play", 0x1, 0x01, play); //TODO: my sample from the logs desn't show play as sending a specific port.
-    let stop: Command = Command::new("stop", 0x1, 0x00, stop); //TODO: check if we even need to stop
+    let active_id_request: Command = Command::new("active_id_request", 0x0b, 0x07, active_id);
+    let unknown_after_size: Command = Command::new("unknown_after_size", 0x0b, 0x70, |_, _, _| {
+        simp(vec![05, 01])
+    }); //TODO: i need to find out what this command is for
+    let play: Command = Command::new("play", 0x1, 0x01, play); 
+    let stop: Command = Command::new("stop", 0x1, 0x00, stop); 
     let id_request: Command = Command::new("id_request", 0xb, 0x16, |message, _, _| {
         match String::from_utf8(message.data.clone()) {
             Ok(a) => info!("Got ID request for file : {:}", a),
             _ => (),
         }
-        msg(vec![0x01, 0x00, 0x00]) //i don't know why this must be 3 bytes but it is what we see in the logs
+        msg(vec![0x01, 0x00]) //i don't know why this must be 3 bytes but it is what we see in the logs
     }); //This just returns 01 to confirm the clip exists
     let commands = vec![
         id_request,
         size_request,
         port_status,
+        unknown_after_size,
         system_status,
         open_port,
         select_port,
