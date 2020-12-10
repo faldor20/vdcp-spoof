@@ -47,12 +47,12 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
         let seconds = a - (minutes * 60u16);
         info!("clip {:} is {:}:{:}", clip_name, minutes, seconds);
         //data is: frames|seconds|minutes|hours
-        Ok(msg(vec![0x00, seconds as u8, minutes as u8, 0x00]))
+        Ok(msg(vec![0x0, seconds as u8, minutes as u8, 0x0]))
     };
 
     stuff().unwrap_or_else(|err: Box<dyn Error>| {
         error!("Failed processing size request. Reason: {:?}", err);
-        msg(vec![0x0, 0, 0, 0])
+        msg(vec![0x0, 0x0, 0x1, 0x0])
     })
 }
 pub fn unknown_command(msg: &Message) -> Response {
