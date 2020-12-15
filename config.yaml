@@ -1,2 +1,12 @@
 ---
-ports: [{ port: "/dev/pts/3", name: "test",number: 04 ,segments:["first","second","third","fourth"] }]
+ports: [{ port: "/dev/pts/3", name: "test",number: 4 ,segments:["first","second","third","fourth"] }]
+adam_output_mapping: {
+  0: {
+    adam_module: 0 ,
+    digital_output_number: 0
+  }, 
+  
+}
+adam_ips: {
+  0: "10.0.0.1",
+}

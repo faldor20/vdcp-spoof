@@ -11,6 +11,7 @@ fn msg(data: Vec<u8>) -> Response {
 
 fn play(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
     info!("Playing port");
+    config.play_sender.send(config.number);//sends theplay command with this ports number
     config.port_status = PortStatus::Playing;
     simp(vec![0x04])
 }

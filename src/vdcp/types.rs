@@ -45,6 +45,7 @@ pub struct PortConfig {
     pub clip_status: ClipStatus,
     pub cued_number: u8,
     pub clips: Vec<Vec<u8>>,
+    pub play_sender:std::sync::mpsc::Sender<u8>
 }
 impl PortConfig {
     ///Moves the cued number index to the next clip in clips
@@ -74,16 +75,15 @@ impl Into<Vec<u8>> for Response {
         }
     }
 }
+type func=fn(&Message, &Vec<u16>, &mut PortConfig) -> Response;
 pub struct Command {
     pub name: String,
     pub command_type: Nibble,
     pub command_code: u8,
-    pub action: Box<dyn Fn(&Message, &Vec<u16>, &mut PortConfig) -> Response>,
+    pub action: Box<func>,
 }
 impl Command {
-    pub fn new<T>(name: &str, command_type: u8, command_code: u8, action: T) -> Command
-    where
-        T: Fn(&Message, &Vec<u16>, &mut PortConfig) -> Response + 'static,
+    pub fn new(name: &str, command_type: u8, command_code: u8, action: func) -> Command
     {
         //let a:|Message|->()=|x:Message|{return;};
 
