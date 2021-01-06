@@ -1,7 +1,7 @@
 ---
-ports: [{ port: "/dev/pts/3", name: "test",number: 4 ,segments:["first","second","third","fourth"] }]
+ports: [{ port: "/dev/pts/2", name: "test",number: 1 ,segments:["first","second","third","fourth"] }]
 adam_output_mapping: {
-  0: {
+  1: {
     adam_module: 0 ,
     digital_output_number: 0
   }, 
