@@ -38,7 +38,7 @@ fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
         }
     }
 }
-///Receies play commands as a u8 representing the port to trigger.
+///Recevies play commands as a u8 representing the port to trigger.
 ///port_mapping is the adam port associated to each playout port
 ///unit_ips isthe ip for each adam module that an adam command points to
 pub fn start(
@@ -125,11 +125,7 @@ fn create_post<'a>(ip: Ipv4Addr, pins: Vec<&AdamCommand>) -> (String, Vec<(Strin
         .collect();
     (address, body)
 }
-//we will use ascII to coomunicate. commands we care about are:
-//#aaDnd| Set single digital output status |Sets the output status of a specific digital output channel
-//the comamnd format is as follows
-//#01Dnd | the 01 is the module it targets. This is allwasy 01
-//#01D
+
 
 //--------==================================================-----
 //=================================TESTS:======================================
