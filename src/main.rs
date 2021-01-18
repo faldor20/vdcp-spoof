@@ -1,7 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #[macro_use]
 extern crate rocket;
-use std::{collections::HashMap, sync::mpsc::channel, thread};
+use std::{sync::mpsc::channel, thread};
 mod vdcp;
 use flexi_logger::*;
 use log::*;
@@ -10,7 +10,7 @@ mod serial;
 mod adam;
 mod web_server;
 use vdcp::types::{PortConfig, PortStatus};
-use maplit::*;
+
 fn setup_logging() {
     let res = Logger::with_str("info")
         .log_target(LogTarget::File)

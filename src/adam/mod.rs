@@ -42,7 +42,7 @@ fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
 ///port_mapping is the adam port associated to each playout port
 ///unit_ips isthe ip for each adam module that an adam command points to
 pub fn start(
-    play_commands: Receiver<(u8)>,
+    play_commands: Receiver<u8>,
     port_mapping: CommandMapping,
     unit_ips: AdamIPs,
 ) -> Result<(), Error> {
