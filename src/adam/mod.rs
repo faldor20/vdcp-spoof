@@ -27,7 +27,7 @@ type AdamID = u8;
 type VDCPPortNum = u8;
 type CommandMapping = HashMap<VDCPPortNum, AdamCommand>;
 type AdamIPs = HashMap<AdamID, Ipv4Addr>;
-
+///Logs errors if the config is in some way broken.
 fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
     for (_, port) in port_mapping {
         if !(unit_ips.contains_key(&port.adam_module)) {
@@ -38,9 +38,14 @@ fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
         }
     }
 }
-///Recevies play commands as a u8 representing the port to trigger.
-///port_mapping is the adam port associated to each playout port
-///unit_ips isthe ip for each adam module that an adam command points to
+///Will wait for info to come in on the `play_commands` channel and trigger the apropriate port in response.
+///
+///`play_commands` A channel that recevies play commands as a u8 representing the port to trigger play on.
+///
+///`port_mapping` is the adam port associated to each playout port
+///
+///`unit_ips` is the ip for each adam module that an adam command points to
+///
 pub fn start(
     play_commands: Receiver<u8>,
     port_mapping: CommandMapping,
@@ -79,7 +84,7 @@ fn send_req(form: &Vec<(&str, &str)>, address: String) {
     }
 }
 
-//Takes a play channel id and reutrns the appropriate comamnd to send to the assigned adam
+///Takes a play channel id and returns the appropriate comamnd to send to the assigned adam
 fn make_commands<'a>(
     mut ports_to_play: Vec<u8>,
     mapping: &CommandMapping,
@@ -117,6 +122,7 @@ fn make_commands<'a>(
         .collect();
     res
 }
+
 fn create_post<'a>(ip: Ipv4Addr, pins: Vec<&AdamCommand>) -> (String, Vec<(String, String)>) {
     let address = format!("http://{0}/digitaloutput/all/value", ip);
     let body: Vec<_> = pins
