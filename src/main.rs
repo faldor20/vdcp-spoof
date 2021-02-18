@@ -37,9 +37,10 @@ fn main() {
         .map(|_| std::sync::mpsc::sync_channel::<Vec<u16>>(100))
         .unzip();
     let rocket_server = web_server::start_server(conf.clone(), senders);
-
-    //We now need a refernce to the times_db given to the webserver
+    //This channel allows us to send messages to the part of the code that handles
+    //communicating with the adam module
     let (play_trigger,play_receiver)=channel();
+    //We now need a refernce to the times_db given to the webserver
     let threads: Vec<_> = receivers
         .drain(..)
         .zip(conf.ports)

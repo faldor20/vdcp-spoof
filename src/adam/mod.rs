@@ -68,7 +68,8 @@ pub fn start(
     }
     Ok(())
 }
-
+///Just a wrapper around ureq takes a http form and sends it.
+///see the `send_form` documentation in ureq for details
 fn send_req(form: &Vec<(&str, &str)>, address: String) {
     //TODO: replace the username and password with something from a config file
     let response = ureq::post(&address).auth("root", "admin").send_form(form);
