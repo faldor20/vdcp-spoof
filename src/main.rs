@@ -33,15 +33,16 @@ fn main() {
     //This vector stores all the times and is written to by the webserver and read from by the vdcp
     //4 segements
     //one vec is created per port name
-    let (senders, mut receivers): (Vec<_>, Vec<_>) = (0..conf.ports.len())
+    let (clip_time_senders, mut clip_time_receivers): (Vec<_>, Vec<_>) = (0..conf.ports.len())
         .map(|_| std::sync::mpsc::sync_channel::<Vec<u16>>(100))
         .unzip();
-    let rocket_server = web_server::start_server(conf.clone(), senders);
+    let rocket_server = web_server::start_server(conf.clone(), clip_time_senders);
     //This channel allows us to send messages to the part of the code that handles
     //communicating with the adam module
     let (play_trigger,play_receiver)=channel();
-    //We now need a refernce to the times_db given to the webserver
-    let threads: Vec<_> = receivers
+    //Here we start one thread per serial port being monitored for vdcp data
+    //Each port is controlled seperatly and sends messages to the adam module via a shared refence to a single message channel.
+    let threads: Vec<_> = clip_time_receivers
         .drain(..)
         .zip(conf.ports)
         
@@ -74,7 +75,9 @@ fn main() {
     let adam_output_mapping= conf.adam_output_mapping;
     let adam_ips=conf.adam_ips;
     let adam_thread=thread::spawn(move|| {adam::start(play_receiver, adam_output_mapping, adam_ips)});
+
     rocket_server.launch();
+
     for thread in threads {
         match thread.join() {
             Err(e) => {

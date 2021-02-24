@@ -54,6 +54,7 @@ pub fn start(
     info!("Starting adam communicator");
     check_for_config_errors(&port_mapping, &unit_ips);
     info!("adam client setup, starting loop");
+    //continous loop where incoming adam trigger requests sent by the vdcp aprt of the program are handled/
     loop {
         thread::sleep(std::time::Duration::from_millis(11));
         //gets all pending values
