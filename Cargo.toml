@@ -15,7 +15,7 @@ serialport = "3.3.0"
 flexi_logger = "0.16"
 log = "0.4"
 simple-error = "0.2.2"
-rocket = "0.4.6"
+rocket = "0.4.7"
 serde_json = "1.0"
 crossbeam = "0.8"
 rocket_cors = "0.5"
@@ -29,6 +29,6 @@ maplit= "1.0"
 [patch.crates-io]
 confy = { git = 'https://github.com/rust-cli/confy' }
 [dependencies.rocket_contrib]
-version = "0.4.6"
+version = "0.4.7"
 default-features = false
 features = ["json"]
