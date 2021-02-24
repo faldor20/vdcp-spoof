@@ -1,0 +1,1 @@
+docker build  ./ -t faldor20/rust-cross-comp

@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "SSH FS - vm_testing_rust",
+			"uri": "ssh://vm_testing_rust/"
+		}
+	],
+	"settings": {}
+}
