@@ -106,7 +106,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,co
             if message.command1.nibbles.n2() == command.command_type.data()
                 && message.command_code == command.command_code
             {
-                info!("Running command: '{:}'", command.name.to_uppercase().yellow());
+                debug!("Running command: '{:}'", command.name.to_uppercase().yellow());
                 let func = &*command.action;
 
                 let a = func(&message, clip_times,config);
@@ -120,7 +120,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,co
 pub fn handle_command(msg: Message, clip_times: &Vec<u16>,config:&mut PortConfig) -> Vec<u8> {
 
     unsafe {
-        info!(
+        debug!(
             "(hex)Processing command for message:|{:x?}|{:x?}[{:x?}/{:x?}]|{:x?}|{:x?}|{:x?}|",
             msg.byte_count,
             msg.command1.byte,

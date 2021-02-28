@@ -52,7 +52,8 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
     };
 
     stuff().unwrap_or_else(|err: Box<dyn Error>| {
-        error!("Failed processing size request. Reason: {:?}", err);
+        warn!("Failed processing size request. Sending a 01 minute response Reason: {:?}", err);
+        
         msg(vec![0x0, 0x0, 0x1, 0x0])
     })
 }
