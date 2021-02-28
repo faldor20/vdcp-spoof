@@ -31,7 +31,7 @@ fn main() {
 
     info!("got {:?} config", conf);
     //This vector stores all the times and is written to by the webserver and read from by the vdcp
-    //4 segements
+    //4 segments
     //one vec is created per port name
     let (clip_time_senders, mut clip_time_receivers): (Vec<_>, Vec<_>) = (0..conf.ports.len())
         .map(|_| std::sync::mpsc::sync_channel::<Vec<u16>>(100))
@@ -41,7 +41,7 @@ fn main() {
     //communicating with the adam module
     let (play_trigger,play_receiver)=channel();
     //Here we start one thread per serial port being monitored for vdcp data
-    //Each port is controlled seperatly and sends messages to the adam module via a shared refence to a single message channel.
+    //Each port is controlled separately and sends messages to the adam module via a shared reference to a single message channel.
     let threads: Vec<_> = clip_time_receivers
         .drain(..)
         .zip(conf.ports)
@@ -49,7 +49,7 @@ fn main() {
         .map(|(rec, port)| {
             let trigger=play_trigger.clone();
             thread::spawn(move || {
-                info!("spawing port monitoring thread");
+                info!("spawning port monitoring thread");
 
                 let config = PortConfig {
                     number: port.number,
@@ -60,17 +60,17 @@ fn main() {
                     play_sender:trigger
                 };
                 serial::start(port.port, rec, config)
-                    .expect("Completly failed interacting with serial port")
+                    .expect("Completely failed interacting with serial port")
             })
         })
         .collect();
 
-    //skips the first irrelivant arg and iterates over them giving each serial reader its own port and id
+    //skips the first irrelevant arg and iterates over them giving each serial reader its own port and id
     /* for (i,recv) in receivers.drain(..).enumerate() {
     //let com=&a[i];
     let a=a[i].clone();
     thread::spawn(move ||{ serial::start(a, recv)
-        .expect("Completly failed interacting with serial port")});
+        .expect("Completely failed interacting with serial port")});
     } */
     let adam_output_mapping= conf.adam_output_mapping;
     let adam_ips=conf.adam_ips;
@@ -94,16 +94,16 @@ fn main() {
     /* crossbeam::thread::scope(|s| {
 
     let rocket_server=web_server::start_server(senders);
-    // let times_db=rocket_server.state::<TimesDB>().expect("webserver did not return times-db state, cannot contuine without timesdb");
+    // let times_db=rocket_server.state::<TimesDB>().expect("webserver did not return times-db state, cannot continue without timesdb");
     rocket_server.launch();
     match a.len() {
         x if x > 2 => {
-            //skips the first irrelivant arg and iterates over them giving each serial reader its own port and id
+            //skips the first irrelevant arg and iterates over them giving each serial reader its own port and id
             for i in 1..a.len() {
                 let com=&a[i];
 
                 s.spawn( |_|{ serial::start(com, receivers[i])
-                    .expect("Completly failed interacting with serial port")});
+                    .expect("Completely failed interacting with serial port")});
                 }
             }
 

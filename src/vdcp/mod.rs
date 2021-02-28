@@ -7,12 +7,12 @@ mod responses;
 pub mod types;
 use colored::*;
 /*
-*Implimentation notes:use std::{error::Error, str::from_utf8};
+*Implementation notes:use std::{error::Error, str::from_utf8};
 
 use log::*;
 use modular_bitfield::prelude::*;
 *all commands must return an ACK after receiving
-*non comprehnded commands should return NAK
+*non comprehended commands should return NAK
 *
 *Message format:
 * v stx (02h)    v cmd type  v command code
@@ -72,7 +72,7 @@ fn checksum(bytes: &Vec<u8>) -> u8 {
 ///     b. Taking the least significant byte of the result
 ///     c. get the 2's compliment of that.
 fn post_processing(message: &Message,  response: Response) -> Vec<u8> {
-    // let base=-vec![0x02,command,commad2];
+    // let base=-vec![0x02,command,command2];
     // Vec::append(data)
         unsafe {
             match response {
@@ -86,7 +86,7 @@ fn post_processing(message: &Message,  response: Response) -> Vec<u8> {
                 body.append(&mut data);
                 let bc = body.len().to_le_bytes()[0];
                 
-                //caculate checksum
+                //calculate checksum
                 let checksum = checksum(&body);
                 body.push(checksum);
                 
@@ -101,7 +101,7 @@ fn post_processing(message: &Message,  response: Response) -> Vec<u8> {
 
 fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,config:&mut PortConfig) -> Response {
     for command in commands {
-        //we have to use an unsafe block becuase we access a union to get our nibbles from a byte
+        //we have to use an unsafe block because we access a union to get our nibbles from a byte
         unsafe {
             if message.command1.nibbles.n2() == command.command_type.data()
                 && message.command_code == command.command_code

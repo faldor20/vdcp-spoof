@@ -1,4 +1,4 @@
-//===Adam commmunication module===
+//===Adam communication module===
 use itertools::*;
 use log::*;
 use serde::{Deserialize, Serialize};
@@ -32,15 +32,15 @@ fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
     for (_, port) in port_mapping {
         if !(unit_ips.contains_key(&port.adam_module)) {
             error!(
-                "the adam module {:} doesnt ahve an ip listed in the unit ips given {:?}",
+                "the adam module {:} doesn't have an ip listed in the unit ips given {:?}",
                 port.adam_module, unit_ips
             );
         }
     }
 }
-///Will wait for info to come in on the `play_commands` channel and trigger the apropriate port in response.
+///Will wait for info to come in on the `play_commands` channel and trigger the appropriate port in response.
 ///
-///`play_commands` A channel that recevies play commands as a u8 representing the port to trigger play on.
+///`play_commands` A channel that receives play commands as a u8 representing the port to trigger play on.
 ///
 ///`port_mapping` is the adam port associated to each playout port
 ///
@@ -54,13 +54,13 @@ pub fn start(
     info!("Starting adam communicator");
     check_for_config_errors(&port_mapping, &unit_ips);
     info!("adam client setup, starting loop");
-    //continous loop where incoming adam trigger requests sent by the vdcp aprt of the program are handled/
+    //continuous loop where incoming adam trigger requests sent by the vdcp apart of the program are handled/
     loop {
         thread::sleep(std::time::Duration::from_millis(11));
         //gets all pending values
-        let newcomands: Vec<_> = play_commands.try_iter().collect();
-        if newcomands.len() > 0 {
-            for (address, body) in make_commands(newcomands, &port_mapping, &unit_ips) {
+        let new_commands: Vec<_> = play_commands.try_iter().collect();
+        if new_commands.len() > 0 {
+            for (address, body) in make_commands(new_commands, &port_mapping, &unit_ips) {
                 let form: Vec<(&str, &str)> =
                     body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
                 send_req(&form, address);
@@ -86,7 +86,7 @@ fn send_req(form: &Vec<(&str, &str)>, address: String) {
     }
 }
 
-///Takes a play channel id and returns the appropriate comamnd to send to the assigned adam
+///Takes a play channel id and returns the appropriate command to send to the assigned adam
 fn make_commands<'a>(
     mut ports_to_play: Vec<u8>,
     mapping: &CommandMapping,
@@ -112,7 +112,7 @@ fn make_commands<'a>(
     let get_adam_ip=|(key,value)|{
         let ip=unit_ips.get(&key);
         match ip {
-            None=>{error!("Adam module {:} didn't have an ip adress listed. Not sending play request",key);None},
+            None=>{error!("Adam module {:} didn't have an ip address listed. Not sending play request",key);None},
             Some(x)=>Some((x,value))
         }
     };
@@ -181,7 +181,7 @@ mod tests {
             ).collect()
         )).collect(); 
 
-       //we sort them both beucase order is not neccissarily preserved
+       //we sort them both because order is not necessarily preserved
         conv_truth.sort();
         res.sort();
         assert_eq!(res,conv_truth);

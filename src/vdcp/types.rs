@@ -52,7 +52,7 @@ impl PortConfig {
     ///should be called each time a clip is stopped
     pub fn next_clip(&mut self) {
         self.cued_number += 1;
-        //We roll over becuase after playing the alst clip we want to play the first one again
+        //We roll over because after playing the last clip we want to play the first one again
         if self.cued_number as usize == self.clips.len() {
             self.cued_number = 0;
         }

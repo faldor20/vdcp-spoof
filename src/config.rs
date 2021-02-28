@@ -13,6 +13,7 @@ impl ::std::default::Default for Config {
         Self { ports: Vec::new(), adam_ips:HashMap::new(),adam_output_mapping:HashMap::new() }
     }
 }
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct VDCPPort {
     pub port: String,

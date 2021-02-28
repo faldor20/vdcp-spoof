@@ -10,8 +10,8 @@ fn msg(data: Vec<u8>) -> Response {
 }
 
 fn play(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
-    info!("Playing port");
-    config.play_sender.send(config.number);//sends theplay command with this ports number
+    info!("Playing port {:}",config.number);
+    config.play_sender.send(config.number);//sends the play command with this ports number
     config.port_status = PortStatus::Playing;
     simp(vec![0x04])
 }
@@ -37,7 +37,7 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
         //the last data byte should tell us the clip number as a utf8 byte
         let last = message.data.last().ok_or("data was empty")?;
 
-        //if we take a utf8 number char byte and subtract hex 30 from it it becomes the number the charctor is
+        //if we take a utf8 number char byte and subtract hex 30 from it it becomes the number the character is
         let index: usize = (last - 0x30) as usize;
 
         let a = clip_times
@@ -77,7 +77,7 @@ pub fn get_commands() -> Vec<Command> {
 
     let port_status: Command = Command::new("port_status", 0x3, 0x05, |_, _, config| {
         // status that may be of use:
-        //vec![0x5, 0x0, 0x0, 0x0, 0x0, 0x80]    | device has jsut been started. needs ports to be opened
+        //vec![0x5, 0x0, 0x0, 0x0, 0x0, 0x80]    | device has just been started. needs ports to be opened
         //vec![0x5, 0x01, 0x01, 0x0, 0x0, 0x0]   | port one selected and idle
         //s1,2 is the port number
         //|bitmap|s1,1|s1,2|s3,1| ,2 |  ,3|
@@ -105,7 +105,7 @@ pub fn get_commands() -> Vec<Command> {
         );
         config.port_status = PortStatus::Cued;
         simp(vec![0x04])
-    }); //the data is discarded becuase we don't need to cue
+    }); //the data is discarded because we don't need to cue
     let active_id_request: Command = Command::new("active_id_request", 0x0b, 0x07, active_id);
     let unknown_after_size: Command = Command::new("unknown_after_size", 0x0b, 0x70, |_, _, _| {
         simp(vec![05, 01])
@@ -140,7 +140,7 @@ pub fn get_commands() -> Vec<Command> {
     connected
     cued
     playing
-    stoped
+    stopped
 
 
     */
