@@ -19,17 +19,17 @@ use modular_bitfield::prelude::*;
 *|8     |8     |[4   ][4   ]|8    |
 *        ^count        ^ unit address
 *
-*Byte  Count  (BC)[8]:  Indicates  the  number  of  bytes  between  the  byte  count  and  thechecksum
+*Byte  Count  (BC)[8]:  Indicates  the  number  of  bytes  between  the  byte  count  and  the checksum
 *Command Type [4]:
-*Unit Adress[4]:Defines the address of a sub-system within the device. The base unit is, 0.
+*Unit Address[4]:Defines the address of a sub-system within the device. The base unit is, 0.
 *command code[8]: Defines what command should be run
 */
 /*
-*Aknowledgements:
-all commands not requireing a message response must send back an ACK
+*Acknowledgements:
+all commands not requiring a message response must send back an ACK
 The response to command types 0, 1, and 2 will be an ACK (04h) or NAK (05h).
-The responseto command type 3 will set the most significant bit of the command to a 1,
-e.g. the response tocommand 29 is A9. The command codes form a unique device dialect.
+The response to command type 3 will set the most significant bit of the command to a 1,
+e.g. the response to command 29 is A9. The command codes form a unique device dialect.
 
 */
 
@@ -49,23 +49,23 @@ fn checksum(bytes: &Vec<u8>) -> u8 {
         a + x
     });
   
-    //we need only the least significan't byte
+    //we need only the least significant byte
     let x: u8 = sum.to_le_bytes()[0];
    
-    //this gives us the twos compliment. This method is confirmed by the messages recieved form teh actuall vdcp server.
+    //this gives us the twos compliment. This method is confirmed by the messages received from the actual vdcp server.
     //it flips all the bits and adds one
     let compliment = x.wrapping_neg();
     return compliment;
 }
 
-///surrounds return data with the approprate stuff to mkae it a valid message
+///surrounds return data with the appropriate stuff to make it a valid message
 ///this does:
 ///1. 0x02 starts the message. to indicate a message start.
 ///2. Counts the data bytes and adds 2 to to take into account the 2 command bytes
-///   and appeneds it as the "byte count"
+///   and appends it as the "byte count"
 ///3. Appends the original command type
-///4. Appeneds the comamnd code:Command codes other than 0,1and 2 wwill require the mos significant bit being set to one
-///   This is eqivilent to adding 128 or 0x80
+///4. Appends the command code:Command codes other than 0,1and 2 will require the mos significant bit being set to one
+///   This is equivalent to adding 128 or 0x80
 ///5.Appends the data
 /// calculates a checksum from the command and data bytes by:
 ///     a. Summing the command and data bytes
