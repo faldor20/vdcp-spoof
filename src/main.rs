@@ -1,7 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #[macro_use]
 extern crate rocket;
-use std::{sync::mpsc::channel, thread};
+use std::{fmt::format, sync::mpsc::channel, thread};
 mod vdcp;
 use flexi_logger::*;
 use log::*;
@@ -10,19 +10,30 @@ mod serial;
 mod adam;
 mod web_server;
 use vdcp::types::{PortConfig, PortStatus};
-
+use multi_log;
 fn setup_logging() {
-    let res = Logger::with_str("info")
+   
+    let (file1,_) = Logger::with_str("info")
         .log_target(LogTarget::File)
         .format(flexi_logger::colored_opt_format)
         .directory("./Logs/")
         .duplicate_to_stdout(Duplicate::All) // write logs to file
         .duplicate_to_stderr(Duplicate::Warn) // print warnings and errors also to the console
-        .start();
-    match res {
+        .build().unwrap();
+    let (file2,_) = Logger::with_str("debug")
+        .log_target(LogTarget::File)
+        .format(flexi_logger::opt_format)
+        .directory("./Logs2/")
+        .duplicate_to_stdout(Duplicate::All) // write logs to file
+        .duplicate_to_stderr(Duplicate::Warn) // print warnings and errors also to the console
+        .build().unwrap();
+    multi_log::MultiLogger::init(vec![file1,file2],Level::Debug).unwrap();
+    info!("this log is shwoing info");
+    debug!("this log is showing debug");
+    /* match reasdasf {
         Err(e) => println!("failed to init logging. Reason: {0}", e),
         Ok(_) => (),
-    }
+    } */
 }
 
 fn main() {

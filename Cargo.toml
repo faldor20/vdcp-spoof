@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 colored = "2"
-
+multi_log="0.1"
 modular-bitfield = "0.11.2"
 #nibble = "0.1.0"
 serialport = "3.3.0"
