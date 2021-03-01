@@ -28,12 +28,8 @@ fn setup_logging() {
         .duplicate_to_stderr(Duplicate::Warn) // print warnings and errors also to the console
         .build().unwrap();
     multi_log::MultiLogger::init(vec![file1,file2],Level::Debug).unwrap();
-    info!("this log is shwoing info");
+    info!("this log is showing info");
     debug!("this log is showing debug");
-    /* match reasdasf {
-        Err(e) => println!("failed to init logging. Reason: {0}", e),
-        Ok(_) => (),
-    } */
 }
 
 fn main() {
