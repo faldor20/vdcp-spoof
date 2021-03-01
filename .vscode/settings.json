@@ -13,5 +13,7 @@
         "timesdb",
         "ureq",
         "webserver"
-    ]
+    ],
+    "nixEnvSelector.suggestion": false,
+    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix"
 }

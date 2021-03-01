@@ -14,7 +14,11 @@ in
     # mkShell will drop us into a shell that has a $CC for the target platform
     pkgs.mkShell {
      
-      nativeBuildInputs = [rust pkgs.pkg-config ];
+      nativeBuildInputs = [ 
+      rust
+      pkgs.rustup 
+      pkgs.pkg-config ];
+      
       buildInputs=[ pkgs.pkg-config pkgs.udev    ];
     }
-   
+    
