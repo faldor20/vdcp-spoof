@@ -60,7 +60,9 @@ pub fn start(
         //gets all pending values
         let new_commands: Vec<_> = play_commands.try_iter().collect();
         if new_commands.len() > 0 {
+           
             for (address, body) in make_commands(new_commands, &port_mapping, &unit_ips) {
+                
                 let form: Vec<(&str, &str)> =
                     body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
                 send_req(&form, address);
@@ -101,7 +103,10 @@ fn make_commands<'a>(
         match comm {
             None=>{error!("Port {:?} did not have an associated adam command. Not sending a play request",port);
                  return None;},
-            Some(x)=>return Some((x.adam_module, x))
+            Some(x)=>{
+            info!("{{Adam}}Playing port {:} with adam:{:?} ",port,x);
+            return Some((x.adam_module, x))
+        }
         }  
     };
     let groups = ports_to_play

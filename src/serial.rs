@@ -88,7 +88,7 @@ fn handle_message(
     config: &mut PortConfig,
 ) -> Result<(), io::Error> {
     let response = vdcp::handle_command(msg, vdcp_times, config);
-    info!("(hex)sending response : {:x?}", response);
+    debug!("(hex)sending response : {:x?}", response);
     port.write_all(&response)?;
     Ok(())
 }
