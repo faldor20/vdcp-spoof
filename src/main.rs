@@ -15,8 +15,9 @@ fn setup_logging() {
    
     let (file1,_) = Logger::with_str("info")
         .log_target(LogTarget::File)
-        .format(flexi_logger::colored_opt_format)
+        .format(flexi_logger::opt_format)
         .directory("./Logs/")
+         .rotate(Criterion::AgeOrSize(Age::Day,1000*1000*10), Naming::Timestamps, Cleanup::KeepLogFiles(100))
         .duplicate_to_stdout(Duplicate::All) // write logs to file
         .duplicate_to_stderr(Duplicate::Warn) // print warnings and errors also to the console
         .build().unwrap();
@@ -24,8 +25,7 @@ fn setup_logging() {
         .log_target(LogTarget::File)
         .format(flexi_logger::opt_format)
         .directory("./Logs2/")
-        .duplicate_to_stdout(Duplicate::All) // write logs to file
-        .duplicate_to_stderr(Duplicate::Warn) // print warnings and errors also to the console
+        .rotate(Criterion::AgeOrSize(Age::Day,1000*1000*10), Naming::Timestamps, Cleanup::KeepLogFiles(100))
         .build().unwrap();
     multi_log::MultiLogger::init(vec![file1,file2],Level::Debug).unwrap();
     info!("this log is showing info");
