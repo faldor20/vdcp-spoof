@@ -75,15 +75,15 @@ impl Into<Vec<u8>> for Response {
         }
     }
 }
-type func=fn(&Message, &Vec<u16>, &mut PortConfig) -> Response;
+type VdcpAction=fn(&Message, &Vec<u16>, &mut PortConfig) -> Response;
 pub struct Command {
     pub name: String,
     pub command_type: Nibble,
     pub command_code: u8,
-    pub action: Box<func>,
+    pub action: Box<VdcpAction>,
 }
 impl Command {
-    pub fn new(name: &str, command_type: u8, command_code: u8, action: func) -> Command
+    pub fn new(name: &str, command_type: u8, command_code: u8, action: VdcpAction) -> Command
     {
         //let a:|Message|->()=|x:Message|{return;};
 
