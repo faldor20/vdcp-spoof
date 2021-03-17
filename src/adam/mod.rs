@@ -1,12 +1,19 @@
 //===Adam communication module===
 use itertools::*;
-use log::*;
+#[cfg(not(test))]
+use log::{error, info, warn};
+
+#[cfg(test)]
+use std::{println as info, println as warn, println as error};
+
+use rayon::prelude::*;
+use rocket::request::Form;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::net::*;
 use std::sync::mpsc::*;
 use std::thread;
 use std::{self, io::Error};
+use std::{collections::HashMap, string};
+use std::{net::*, thread::Thread, time::Duration};
 use ureq;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdamCommand {
@@ -27,6 +34,14 @@ type AdamID = u8;
 type VDCPPortNum = u8;
 type CommandMapping = HashMap<VDCPPortNum, AdamCommand>;
 type AdamIPs = HashMap<AdamID, Ipv4Addr>;
+type URL = String;
+type Key = String;
+type Value = String;
+type FormData = Vec<(Key, Value)>;
+#[derive(Debug)]
+enum RequestType {
+    Pulse,
+}
 ///Logs errors if the config is in some way broken.
 fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
     for (_, port) in port_mapping {
@@ -60,20 +75,37 @@ pub fn start(
         //gets all pending values
         let new_commands: Vec<_> = play_commands.try_iter().collect();
         if new_commands.len() > 0 {
-           
-            for (address, body) in make_commands(new_commands, &port_mapping, &unit_ips) {
-                
-                let form: Vec<(&str, &str)> =
-                    body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
-                send_req(&form, address);
-            }
+            let adam_requests = make_commands(new_commands, &port_mapping, &unit_ips);
+            dispatch_adam_requests(adam_requests);
         }
     }
     Ok(())
 }
+
+fn dispatch_adam_requests(commands: Vec<(RequestType, URL, FormData)>) {
+    commands.into_par_iter().for_each(|(req_type,address, body)|{
+        let mut form: Vec<(&str, &str)> = body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
+        send_req(&form,&address);
+        match req_type{RequestType::Pulse =>{
+            thread::sleep(Duration::from_millis(100));
+            let off_form:Vec<(&str, &str)>= form.iter().map(|(a,b)|{
+                    match *b {
+                        "1"=> (*a,"0"),
+                        "0"=> (*a,"1"),
+                        _=>{
+                          error!("Could not run pulse. Sending data that cannot be reversed, simply resending message"); 
+                            (*a,*b)
+                        }
+                    }
+                }).collect();
+            send_req(&off_form, &address);},
+        }
+    }
+    );
+}
 ///Just a wrapper around ureq takes a http form and sends it.
 ///see the `send_form` documentation in ureq for details
-fn send_req(form: &Vec<(&str, &str)>, address: String) {
+fn send_req(form: &Vec<(&str, &str)>, address: &URL) {
     //TODO: replace the username and password with something from a config file
     let response = ureq::post(&address).auth("root", "admin").send_form(form);
     match response.ok() {
@@ -93,32 +125,44 @@ fn make_commands<'a>(
     mut ports_to_play: Vec<u8>,
     mapping: &CommandMapping,
     unit_ips: &AdamIPs,
-) -> Vec<(String, Vec<(String, String)>)> {
-
+) -> Vec<(RequestType, URL, FormData)> {
     ports_to_play.sort_unstable();
 
-    let get_adam_command=
-        |port|->Option<_>{
-        let comm=mapping.get(port);
-        match comm {
-            None=>{error!("Port {:?} did not have an associated adam command. Not sending a play request",port);
-                 return None;},
-            Some(x)=>{
-            info!("{{Adam}}Playing port {:} with adam:{:?} ",port,x);
-            return Some((x.adam_module, x))
+    let get_adam_command = |port| -> Option<_> {
+        let command = mapping.get(port);
+        match command {
+            None => {
+                error!(
+                    "Port {:?} did not have an associated adam command. Not sending a play request",
+                    port
+                );
+                return None;
+            }
+            Some(this_command) => {
+                info!(
+                    "{{Adam}}Playing port {:} with adam:{:?} ",
+                    port, this_command
+                );
+                return Some((this_command.adam_module, this_command));
+            }
         }
-        }  
     };
     let groups = ports_to_play
         .iter()
         .filter_map(get_adam_command)
         .into_group_map();
 
-    let get_adam_ip=|(key,value)|{
-        let ip=unit_ips.get(&key);
+    let get_adam_ip = |(key, commands)| {
+        let ip = unit_ips.get(&key);
         match ip {
-            None=>{error!("Adam module {:} didn't have an ip address listed. Not sending play request",key);None},
-            Some(x)=>Some((x,value))
+            None => {
+                error!(
+                    "Adam module {:} didn't have an ip address listed. Not sending play request",
+                    key
+                );
+                None
+            }
+            Some(x) => Some((x, commands)),
         }
     };
 
@@ -129,16 +173,15 @@ fn make_commands<'a>(
         .collect();
     res
 }
-
-fn create_post<'a>(ip: Ipv4Addr, pins: Vec<&AdamCommand>) -> (String, Vec<(String, String)>) {
-    let address = format!("http://{0}/digitaloutput/all/value", ip);
+///Creates a http requst string for the adam ip and pin given
+fn create_post<'a>(ip: Ipv4Addr, pins: Vec<&AdamCommand>) -> (RequestType, URL, FormData) {
+    let address: URL = format!("http://{0}/digitaloutput/all/value", ip);
     let body: Vec<_> = pins
         .iter()
         .map(|a| (format!("DO{:}", a.digital_output_number), "1".to_string()))
         .collect();
-    (address, body)
+    (RequestType::Pulse, address, body)
 }
-
 
 //--------==================================================-----
 //=================================TESTS:======================================
@@ -147,10 +190,11 @@ fn create_post<'a>(ip: Ipv4Addr, pins: Vec<&AdamCommand>) -> (String, Vec<(Strin
 #[cfg(test)]
 mod tests {
     use std::net::Ipv4Addr;
+    use test_env_log::test;
 
-    use super::{make_commands, AdamCommand, AdamIPs, CommandMapping};
+    use super::*;
 
-    fn get_test_data() -> (CommandMapping, AdamIPs) {
+    fn get_test_data(ip1: Ipv4Addr, ip2: Ipv4Addr) -> (CommandMapping, AdamIPs) {
         let mut mapping = CommandMapping::new();
         let adam_out_1 = AdamCommand::new(0, 0);
         let adam_out_2 = AdamCommand::new(0, 1);
@@ -161,15 +205,19 @@ mod tests {
         mapping.insert(2, adam_out_3);
         mapping.insert(3, adam_out_4);
         let mut Ips = AdamIPs::new();
-        Ips.insert(0, Ipv4Addr::new(10, 0, 0, 1));
-        Ips.insert(1, Ipv4Addr::new(10, 0, 0, 2));
+        Ips.insert(0, ip1);
+        Ips.insert(1, ip2);
         (mapping, Ips)
     }
-    #[test]
-    fn make_commands_test() {
-        let (map, ips) = get_test_data();
+    fn get_commands() -> Vec<(RequestType, URL, FormData)> {
+        let (map, ips) = get_test_data(Ipv4Addr::new(10, 0, 0, 1), Ipv4Addr::new(10, 0, 0, 2));
         let mut res = make_commands(vec![0, 3], &map, &ips);
-         let mut truth:Vec<(&str,Vec<(&str,&str)>)> = vec![
+        return res;
+    }
+    /*     #[test]
+    fn make_commands_test() {
+        let mut res = get_commands();
+        let mut truth: Vec<(&str, Vec<(&str, &str)>)> = vec![
             (
                 "http://10.0.0.1/digitaloutput/all/value",
                 vec![("DO0", "1")],
@@ -179,16 +227,34 @@ mod tests {
                 vec![("DO0", "1")],
             ),
         ];
-        let mut conv_truth:Vec<_>=truth.drain(..).map(|(a,mut b)|
-        (String::from(a),
-            b.drain(..).map(
-                |(a,b)|{(String::from(a),String::from(b))}
-            ).collect()
-        )).collect(); 
+        let mut conv_truth: Vec<_> = truth
+            .drain(..)
+            .map(|(a, mut b)| {
+                (
+                    String::from(a),
+                    b.drain(..)
+                        .map(|(a, b)| (String::from(a), String::from(b)))
+                        .collect(),
+                )
+            })
+            .collect();
 
-       //we sort them both because order is not necessarily preserved
+        //we sort them both because order is not necessarily preserved
         conv_truth.sort();
         res.sort();
-        assert_eq!(res,conv_truth);
+        assert_eq!(res, conv_truth);
+    } */
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+    #[test]
+    fn trigger_adam_test() {
+        init();
+        info!("Checking whether it still works...");
+        let (mapping, ips) =
+            get_test_data(Ipv4Addr::new(10, 44, 8, 92), Ipv4Addr::new(10, 44, 8, 93));
+        let commands = make_commands(vec![0, 1], &mapping, &ips);
+        println!("Commands are {:?}", commands);
+        let res = dispatch_adam_requests(commands);
     }
 }
