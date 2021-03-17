@@ -19,16 +19,21 @@ rocket = "0.4.7"
 serde_json = "1.0"
 crossbeam = "0.8"
 rocket_cors = "0.5"
-
+rayon="1.5"
 serde = { version = "1.0", features = ["derive"] }
 
 confy = {version = "0.4.0",features = ["yaml_conf"],default-features = false}
 ureq="1.5"
 itertools = "0.9"
 maplit= "1.0"
+
 [patch.crates-io]
 confy = { git = 'https://github.com/rust-cli/confy' }
 [dependencies.rocket_contrib]
 version = "0.4.7"
 default-features = false
 features = ["json"]
+[dev-dependencies]
+# used for testing
+test-env-log = "0.2.5"
+env_logger = "0.8.3"
