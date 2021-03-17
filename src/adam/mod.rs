@@ -7,13 +7,13 @@ use log::{error, info, warn};
 use std::{println as info, println as warn, println as error};
 
 use rayon::prelude::*;
-use rocket::request::Form;
+
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc::*;
 use std::thread;
 use std::{self, io::Error};
-use std::{collections::HashMap, string};
-use std::{net::*, thread::Thread, time::Duration};
+use std::{collections::HashMap };
+use std::{net::*, time::Duration};
 use ureq;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdamCommand {
@@ -79,12 +79,11 @@ pub fn start(
             dispatch_adam_requests(adam_requests);
         }
     }
-    Ok(())
 }
 
 fn dispatch_adam_requests(commands: Vec<(RequestType, URL, FormData)>) {
     commands.into_par_iter().for_each(|(req_type,address, body)|{
-        let mut form: Vec<(&str, &str)> = body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
+        let  form: Vec<(&str, &str)> = body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
         send_req(&form,&address);
         match req_type{RequestType::Pulse =>{
             thread::sleep(Duration::from_millis(100));
@@ -204,14 +203,14 @@ mod tests {
         mapping.insert(1, adam_out_2);
         mapping.insert(2, adam_out_3);
         mapping.insert(3, adam_out_4);
-        let mut Ips = AdamIPs::new();
-        Ips.insert(0, ip1);
-        Ips.insert(1, ip2);
-        (mapping, Ips)
+        let mut ips = AdamIPs::new();
+        ips.insert(0, ip1);
+        ips.insert(1, ip2);
+        (mapping, ips)
     }
     fn get_commands() -> Vec<(RequestType, URL, FormData)> {
         let (map, ips) = get_test_data(Ipv4Addr::new(10, 0, 0, 1), Ipv4Addr::new(10, 0, 0, 2));
-        let mut res = make_commands(vec![0, 3], &map, &ips);
+        let res = make_commands(vec![0, 3], &map, &ips);
         return res;
     }
     /*     #[test]
@@ -255,6 +254,6 @@ mod tests {
             get_test_data(Ipv4Addr::new(10, 44, 8, 92), Ipv4Addr::new(10, 44, 8, 93));
         let commands = make_commands(vec![0, 1], &mapping, &ips);
         println!("Commands are {:?}", commands);
-        let res = dispatch_adam_requests(commands);
+        dispatch_adam_requests(commands);
     }
 }

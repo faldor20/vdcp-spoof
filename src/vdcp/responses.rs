@@ -9,13 +9,13 @@ fn msg(data: Vec<u8>) -> Response {
     Response::Message(data)
 }
 
-fn play(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
+fn play(_: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
     info!("Playing port {:}",config.number);
     config.play_sender.send(config.number).unwrap_or_else(|_|{error!("Could not send play command to adam. channel not working")});//sends the play command with this ports number
     config.port_status = PortStatus::Playing;
     simp(vec![0x04])
 }
-fn active_id(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
+fn active_id(_: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
     match config.port_status {
         PortStatus::Idle => return msg(vec![0x0]),
         _ => {
@@ -25,7 +25,7 @@ fn active_id(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Respon
         }
     }
 }
-fn stop(message: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
+fn stop(_: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
     config.port_status = PortStatus::Idle;
     config.next_clip();
     simp(vec![0x04])
