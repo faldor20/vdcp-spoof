@@ -40,17 +40,17 @@ pub fn start(
 //1: a stx code(02h) denoting teh start of a new message
 //3: getting as many bytes as the bytecount +1(the checksum is not counted)
 //2: an extended time without new data
-fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8) -> Result<Message, io::Error> {
+fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8,portNum:u8) -> Result<Message, io::Error> {
     let expected_bytes: usize = (byte_count + 1).into();
 
     //======Try to read the message and checksum ======
-    debug!("Reading message of length {0}", byte_count);
+    debug!("[Port:{:}]Reading message of length {:}",portNum, byte_count);
     let mut message_buf = vec![0; expected_bytes];
     let read = port.read(&mut message_buf)?;
 
     if read != expected_bytes {
         warn!(
-            "Read command {:?} but it was missing {:?} bytes",
+            "[Port:{:}]Read command {:?} but it was missing {:?} bytes",portNum,
             message_buf,
             expected_bytes - read
         );
@@ -93,21 +93,21 @@ fn handle_message(
     Ok(())
 }
 ///Reads the byte_count byte from an incoming message
-fn read_length(port: &mut Box<dyn SerialPort>) -> Result<u8, io::Error> {
-    debug!("Got start of message byte");
+fn read_length(port: &mut Box<dyn SerialPort>,portNum:u8) -> Result<u8, io::Error> {
+    debug!("[Port:{:}]Got start of message byte",portNum);
     let mut buf = [0u8; 1];
     port.read_exact(&mut buf)?;
     Ok(buf[0])
 }
 ///Tries to read the start byte of a message, returns error if it doesnt read a start byte
-fn read_start(port: &mut Box<dyn SerialPort>) -> Result<(), io::Error> {
+fn read_start(port: &mut Box<dyn SerialPort>,portNum:u8) -> Result<(), io::Error> {
     let mut buf = [0u8; 1];
     port.read_exact(&mut buf)?;
     //check if the byte read is the beginning of a message
     if buf[0] == 0x02 {
     } else {
         warn!(
-            "(hex)Got byte that wasn't a message start when a start was expected: |{:x?}|",
+            "(hex)[Port:{:}]Got byte that wasn't a message start when a start was expected: |{:x?}|",portNum,
             buf[0]
         );
         return Err(io::Error::new(
@@ -124,14 +124,14 @@ fn handle_incoming_data(
     config: &mut PortConfig,
 ) -> Result<(), io::Error> {
     //TODO: make it so taht naything after the readstart causing a faulure sends a NAK back to the sender
-    read_start(port)?; //delay after if fail
+    read_start(port,config.number)?; //delay after if fail
 
     //Tiny delay here just to make sure the data gets to us before we read on.
     //TODO: test if this is necissary
     thread::sleep(std::time::Duration::from_millis(10));
 
-    let byte_count = read_length(port)?;
-    let message = read_message(port, byte_count)?;
+    let byte_count = read_length(port,config.number)?;
+    let message = read_message(port, byte_count,config.number)?;
     handle_message(port, message, vdcp_times, config)?;
     Ok(())
 }

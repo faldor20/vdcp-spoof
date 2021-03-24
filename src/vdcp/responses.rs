@@ -57,10 +57,10 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
         msg(vec![0x0, 0x0, 0x1, 0x0])
     })
 }
-pub fn unknown_command(msg: &Message) -> Response {
+pub fn unknown_command(msg: &Message,portNum:u8) -> Response {
     unsafe {
         warn!(
-            "(hex)received unknown command|{:x?}|{:x?}|{:x?}|{:x?}|{:x?}|",
+            "[Port: {:}](hex)received unknown command|{:x?}|{:x?}|{:x?}|{:x?}|{:x?}|",portNum,
             msg.byte_count, msg.command1.byte, msg.command_code, msg.data, msg.checksum
         );
     }

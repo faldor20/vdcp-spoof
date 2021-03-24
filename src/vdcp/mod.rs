@@ -115,7 +115,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,co
             }
         }
     }
-    unknown_command(message)
+    unknown_command(message,config.number)
 }
 
 pub fn handle_command(msg: Message, clip_times: &Vec<u16>,config:&mut PortConfig) -> Vec<u8> {
