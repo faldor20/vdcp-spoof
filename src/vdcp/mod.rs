@@ -6,6 +6,7 @@ use responses::unknown_command;
 mod responses;
 pub mod types;
 use colored::*;
+#[macro_use]
 /*
 *Implementation notes:use std::{error::Error, str::from_utf8};
 
@@ -106,7 +107,7 @@ fn run_command(message: &Message, commands: &[Command], clip_times: &Vec<u16>,co
             if message.command1.nibbles.n2() == command.command_type.data()
                 && message.command_code == command.command_code
             {
-                debug!("Running command: '{:}'", command.name.to_uppercase().yellow());
+                debug!("[Port: {:}]Running command: '{:}'",config.number, command.name.to_uppercase().yellow());
                 let func = &*command.action;
 
                 let a = func(&message, clip_times,config);
@@ -121,7 +122,8 @@ pub fn handle_command(msg: Message, clip_times: &Vec<u16>,config:&mut PortConfig
 
     unsafe {
         debug!(
-            "(hex)Processing command for message:|{:x?}|{:x?}[{:x?}/{:x?}]|{:x?}|{:x?}|{:x?}|",
+            "(hex)[port:{:?}]  Processing command for message:|{:x?}|{:x?}[{:x?}/{:x?}]|{:x?}|{:x?}|{:x?}|",
+            config.number,
             msg.byte_count,
             msg.command1.byte,
             msg.command1.nibbles.n2(),

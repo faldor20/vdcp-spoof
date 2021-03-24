@@ -21,7 +21,7 @@ pub fn start(
     vdcp_times: Receiver<Vec<u16>>,
     config: PortConfig,
 ) -> Result<(), Box<dyn Error>> {
-    info!("starting serial connection at com port:{0}", com);
+    info!("[Port:{0}] Starting serial connection at com port:{1}",config.number, com);
     let port_settings = serialport::SerialPortSettings {
         baud_rate: 38400,
         flow_control: FlowControl::None,
@@ -88,7 +88,7 @@ fn handle_message(
     config: &mut PortConfig,
 ) -> Result<(), io::Error> {
     let response = vdcp::handle_command(msg, vdcp_times, config);
-    debug!("(hex)sending response : {:x?}", response);
+    debug!("(hex)[Port:{:}] sending response : {:x?}",config.number, response);
     port.write_all(&response)?;
     Ok(())
 }
@@ -138,7 +138,7 @@ fn handle_incoming_data(
 
 fn resend_times(config: &mut PortConfig) -> Instant {
     config.clip_status = NoClips;
-    info!("got new times, setting clips to 0 and waiting 20s");
+    info!("[Port:{:}] got new times, setting clips to 0 and waiting 20s",config.number);
     Instant::now()
 
 }
@@ -151,7 +151,7 @@ fn check_timeout(
         Some(x) => {
             
             if Instant::now().duration_since(*x) > *timeout_length {
-                info!("Timeout elapsed setting clips back to 1f");
+                info!("[Port:{:}] Timeout elapsed setting clips back to 1f",config.number);
                 *timeout = None;
                 config.clip_status = vdcp::types::ClipStatus::Clips
             }
@@ -165,7 +165,7 @@ fn serial_reader(
     vdcp_times: Receiver<Vec<u16>>,
     mut config: PortConfig,
 ) -> Result<(), std::io::Error> {
-    info!("About to start read loop");
+    info!("[Port:{:}] About to start read loop",config.number);
     //currently this just keeps reading till it finds a beginning of message command
     let mut latest_times: Vec<u16> = vec![0; 10]; //todo: setting this with a random number could result in trying to access a time out of range
     let mut timeout: Option<Instant> = Option::None;
@@ -178,7 +178,7 @@ fn serial_reader(
         match times.last() {
             Some(x) => {
                 let port_name = &*port.name().unwrap_or_default();
-                info!("Got new times data {:?} for port {:}", &x, port_name);
+                info!("[Port:{:}] Got new times data {:?} for port {:}",config.number, &x, port_name);
                 latest_times = x;
                 timeout=Some(resend_times(&mut config));
             }
@@ -187,7 +187,7 @@ fn serial_reader(
         match handle_incoming_data(&mut port, &latest_times, &mut config) {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => continue,
-                _ => warn!("message read failed becuase: {0}", e),
+                _ => warn!("[Port:{:}] message read failed becuase: {:}",config.number, e),
             },
             Ok(_) => (),
         }

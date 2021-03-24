@@ -32,7 +32,7 @@ fn stop(_: &Message, _: &Vec<u16>, config: &mut PortConfig) -> Response {
 }
 fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfig) -> Response {
     let clip_name = from_utf8(&message.data).unwrap_or("failed to convert from bytes to utf8");
-    info!("size requested for clip {:?}", clip_name);
+    info!("[Port: {:}]size requested for clip {:?}",config.number, clip_name);
     let stuff = || -> Result<Response, Box<dyn Error>> {
         //the last data byte should tell us the clip number as a utf8 byte
         let last = message.data.last().ok_or("data was empty")?;
@@ -46,13 +46,13 @@ fn size_request(message: &Message, clip_times: &Vec<u16>, config: &mut PortConfi
         //This gets our hours and then seconds.
         let minutes = a / 60u16;
         let seconds = a - (minutes * 60u16);
-        info!("clip {:} is {:}:{:}", clip_name, minutes, seconds);
+        info!("[Port: {:}]clip {:} is {:}:{:}",config.number, clip_name, minutes, seconds);
         //data is: frames|seconds|minutes|hours
         Ok(msg(vec![0x0, seconds as u8, minutes as u8, 0x0]))
     };
 
     stuff().unwrap_or_else(|err: Box<dyn Error>| {
-        warn!("Failed processing size request. Sending a 01 minute response Reason: {:?}", err);
+        warn!("[Port: {:}]Failed processing size request. Sending a 01 minute response. Reason: {:?}",config.number, err);
         
         msg(vec![0x0, 0x0, 0x1, 0x0])
     })
@@ -92,7 +92,9 @@ pub fn get_commands() -> Vec<Command> {
     });
     let select_port: Command = Command::new("select_port", 0x2, 0x22, |message, _, config| {
         info!(
-            "Request to select port {:} setting port number to that",
+            
+            "[Port:{:}]Request to select port {:} setting port number to that",
+            config.number,
             message.data[0]
         );
         config.number = message.data[0];
@@ -100,7 +102,8 @@ pub fn get_commands() -> Vec<Command> {
     }); //?NOTE this selects a specific port for playing
     let cue_with_data: Command = Command::new("cue_with_data", 0xa, 0x25, |msg, _, config| {
         info!(
-            "Cueing clip: {:}",
+            "[Port:{:}]Cueing clip: {:}",
+            config.number,
             std::str::from_utf8(&msg.data[0..6]).unwrap_or("")
         );
         config.port_status = PortStatus::Cued;
@@ -112,9 +115,9 @@ pub fn get_commands() -> Vec<Command> {
     }); //TODO: i need to find out what this command is for
     let play: Command = Command::new("play", 0x1, 0x01, play); 
     let stop: Command = Command::new("stop", 0x1, 0x00, stop); 
-    let id_request: Command = Command::new("id_request", 0xb, 0x16, |message, _, _| {
+    let id_request: Command = Command::new("id_request", 0xb, 0x16, |message, _, config| {
         match String::from_utf8(message.data.clone()) {
-            Ok(a) => info!("Got ID request for file : {:}", a),
+            Ok(a) => info!("[Port:{:}]Got ID request for file : {:}",config.number, a),
             _ => (),
         }
         msg(vec![0x01, 0x00]) //i don't know why this must be 3 bytes but it is what we see in the logs
