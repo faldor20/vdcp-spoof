@@ -15,3 +15,5 @@ Cargo.lock
 /target
 .history/
 /Logs
+/publish/
+/Logs2
