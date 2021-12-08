@@ -1,3 +1,4 @@
+use crossbeam::queue::ArrayQueue;
 //===Adam communication module===
 use itertools::*;
 #[cfg(not(test))]
@@ -9,12 +10,13 @@ use std::{println as info, println as warn, println as error};
 use rayon::prelude::*;
 
 use serde::{Deserialize, Serialize};
-use std::sync::mpsc::*;
+use std::sync::{mpsc::*, Arc};
 use std::thread;
 use std::{self, io::Error};
 use std::{collections::HashMap };
 use std::{net::*, time::Duration};
 use ureq;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdamCommand {
     adam_module: AdamID,
@@ -53,6 +55,7 @@ fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
         }
     }
 }
+
 ///Will wait for info to come in on the `play_commands` channel and trigger the appropriate port in response.
 ///
 ///`play_commands` A channel that receives play commands as a u8 representing the port to trigger play on.
@@ -61,32 +64,42 @@ fn check_for_config_errors(port_mapping: &CommandMapping, unit_ips: &AdamIPs) {
 ///
 ///`unit_ips` is the ip for each adam module that an adam command points to
 ///
+/// 
 pub fn start(
     play_commands: Receiver<u8>,
     port_mapping: CommandMapping,
     unit_ips: AdamIPs,
-) -> Result<(), Error> {
+) -> Result<(), RecvError> {
     info!("Starting adam communicator");
     check_for_config_errors(&port_mapping, &unit_ips);
     info!("adam client setup, starting loop");
     //continuous loop where incoming adam trigger requests sent by the vdcp apart of the program are handled/
-    loop {
+    //let mut time=std::time::Instant::now();
+    //let buffer=ArrayQueue::new(port_mapping.len()+1);
+    let thread_pool=rayon::ThreadPoolBuilder::new().num_threads(5).build().expect("Adam Thread pool failed to be created");
+
+
+    loop{
+         //We wait until we receive a command and then wait for any others that should be executed at the same time
+        let first=play_commands.recv()?;
         thread::sleep(std::time::Duration::from_millis(11));
-        //gets all pending values
-        let new_commands: Vec<_> = play_commands.try_iter().collect();
-        if new_commands.len() > 0 {
-            let adam_requests = make_commands(new_commands, &port_mapping, &unit_ips);
-            dispatch_adam_requests(adam_requests);
-        }
+        let mut rest:Vec<_>=play_commands.try_iter().collect();
+        rest.append(&mut vec![first]);
+
+        let adam_requests = make_commands(rest, &port_mapping, &unit_ips);
+       thread_pool.spawn( move ||{dispatch_adam_requests(adam_requests)})
     }
+    
 }
 
 fn dispatch_adam_requests(commands: Vec<(RequestType, URL, FormData)>) {
     commands.into_par_iter().for_each(|(req_type,address, body)|{
         let  form: Vec<(&str, &str)> = body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
+        info!("{{Adam}} Sending Request {:} | {:?}",&address,&form);
         send_req(&form,&address);
+        //If it was a pulse we wait a little while then switch the port back to its original state
         match req_type{RequestType::Pulse =>{
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(20)); 
             let off_form:Vec<(&str, &str)>= form.iter().map(|(a,b)|{
                     match *b {
                         "1"=> (*a,"0"),
@@ -109,11 +122,11 @@ fn send_req(form: &Vec<(&str, &str)>, address: &URL) {
     let response = ureq::post(&address).auth("root", "admin").send_form(form);
     match response.ok() {
         false => error!(
-            "Request {:}|{:?} to set digital ports on adam failed response: {:?}",
+            "{{Adam}}Request {:} | {:?} to set digital ports on adam failed response: {:?}",
             address, form, response
         ),
         true => info!(
-            "Request {:}|{:?} to set digital ports on adam success. Response:{:?}",
+            "{{Adam}}Request {:} | {:?} to set digital ports on adam success. Response:{:?}",
             address, form, response
         ),
     }
@@ -139,7 +152,7 @@ fn make_commands<'a>(
             }
             Some(this_command) => {
                 info!(
-                    "{{Adam}}Playing port {:} with adam:{:?} ",
+                    "{{Adam}}Creating play command for port {:} with adam:{:?} ",
                     port, this_command
                 );
                 return Some((this_command.adam_module, this_command));
@@ -172,7 +185,8 @@ fn make_commands<'a>(
         .collect();
     res
 }
-///Creates a http requst string for the adam ip and pin given
+///Creates a http request string for the adam ip and pins given
+///It combines all the commands together int a single request
 fn create_post<'a>(ip: Ipv4Addr, pins: Vec<&AdamCommand>) -> (RequestType, URL, FormData) {
     let address: URL = format!("http://{0}/digitaloutput/all/value", ip);
     let body: Vec<_> = pins
