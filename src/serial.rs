@@ -47,7 +47,7 @@ fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8,portNum:u8) -> Re
     debug!("[Port:{:}]Reading message of length {:}",portNum, byte_count);
     let mut message_buf = vec![0; expected_bytes];
     let read = port.read(&mut message_buf)?;
-
+    
     if read != expected_bytes {
         warn!(
             "[Port:{:}]Read command {:?} but it was missing {:?} bytes",portNum,
@@ -81,6 +81,7 @@ fn read_message(port: &mut Box<dyn SerialPort>, byte_count: u8,portNum:u8) -> Re
         Ok(msg)
     }
 }
+
 fn handle_message(
     port: &mut Box<dyn SerialPort>,
     msg: Message,
@@ -123,14 +124,18 @@ fn handle_incoming_data(
     vdcp_times: &Vec<u16>,
     config: &mut PortConfig,
 ) -> Result<(), io::Error> {
-    //TODO: make it so taht naything after the readstart causing a faulure sends a NAK back to the sender
+    //TODO: make it so that anything after the readstart causing a faulure sends a NAK back to the sender
     read_start(port,config.number)?; //delay after if fail
 
     //Tiny delay here just to make sure the data gets to us before we read on.
     //TODO: test if this is necissary
-    thread::sleep(std::time::Duration::from_millis(10));
+    // thread::sleep(std::time::Duration::from_millis(10));
 
     let byte_count = read_length(port,config.number)?;
+    //wait if the buffer doesn't have the required number of bytes available
+    if (port.bytes_to_read()?) != (byte_count as u32){
+        thread::sleep(std::time::Duration::from_millis(10));
+    }
     let message = read_message(port, byte_count,config.number)?;
     handle_message(port, message, vdcp_times, config)?;
     Ok(())
@@ -170,7 +175,9 @@ fn serial_reader(
     let mut latest_times: Vec<u16> = vec![0; 10]; //todo: setting this with a random number could result in trying to access a time out of range
     let mut timeout: Option<Instant> = Option::None;
     let timeout_length = Duration::from_secs(20);
+    let mut num_reads=0;
     loop {
+        
         check_timeout(&mut timeout, &timeout_length, &mut config);
 
         //we have to unwrap the thread safe atomic cell and read
@@ -184,13 +191,21 @@ fn serial_reader(
             }
             _ => (),
         }
-        match handle_incoming_data(&mut port, &latest_times, &mut config) {
-            Err(e) => match e.kind() {
-                io::ErrorKind::TimedOut => continue,
-                _ => warn!("[Port:{:}] message read failed becuase: {:}",config.number, e),
-            },
-            Ok(_) => (),
+        //We limit the number of reads so we can never block the thread forever.
+        while port.bytes_to_read()? !=0 &&num_reads<10{
+            match handle_incoming_data(&mut port, &latest_times, &mut config) {
+                Err(e) => match e.kind() {
+                    io::ErrorKind::TimedOut => continue,
+                    _ => warn!("[Port:{:}] message read failed becuase: {:}",config.number, e),
+                },
+                Ok(_) => (),
+            }
+            num_reads+=1;
         }
+        //Delay if we are having downtime
+        if num_reads==0{
         thread::sleep(std::time::Duration::from_millis(5));
+        }
+        num_reads=0;
     }
 }
