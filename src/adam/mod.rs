@@ -17,6 +17,8 @@ use std::{collections::HashMap };
 use std::{net::*, time::Duration};
 use ureq;
 
+use crate::config::Delays;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdamCommand {
     adam_module: AdamID,
@@ -69,6 +71,7 @@ pub fn start(
     play_commands: Receiver<u8>,
     port_mapping: CommandMapping,
     unit_ips: AdamIPs,
+    delays:&Delays
 ) -> Result<(), RecvError> {
     info!("Starting adam communicator");
     check_for_config_errors(&port_mapping, &unit_ips);
@@ -78,28 +81,30 @@ pub fn start(
     //let buffer=ArrayQueue::new(port_mapping.len()+1);
     let thread_pool=rayon::ThreadPoolBuilder::new().num_threads(5).build().expect("Adam Thread pool failed to be created");
 
+    let pulse_delay=delays.adam_pulse_off.clone();
 
     loop{
          //We wait until we receive a command and then wait for any others that should be executed at the same time
         let first=play_commands.recv()?;
-        thread::sleep(std::time::Duration::from_millis(11));
+        thread::sleep(std::time::Duration::from_millis(delays.adam_command_buffer));
         let mut rest:Vec<_>=play_commands.try_iter().collect();
         rest.append(&mut vec![first]);
 
+
         let adam_requests = make_commands(rest, &port_mapping, &unit_ips);
-       thread_pool.spawn( move ||{dispatch_adam_requests(adam_requests)})
+       thread_pool.spawn( move ||{dispatch_adam_requests(adam_requests,pulse_delay)})
     }
     
 }
 
-fn dispatch_adam_requests(commands: Vec<(RequestType, URL, FormData)>) {
+fn dispatch_adam_requests(commands: Vec<(RequestType, URL, FormData)>,pulse_delay:u64) {
     commands.into_par_iter().for_each(|(req_type,address, body)|{
         let  form: Vec<(&str, &str)> = body.iter().map(|(a, b)| (a.as_ref(), b.as_ref())).collect();
         info!("{{Adam}} Sending Request {:} | {:?}",&address,&form);
         send_req(&form,&address);
         //If it was a pulse we wait a little while then switch the port back to its original state
         match req_type{RequestType::Pulse =>{
-            thread::sleep(Duration::from_millis(20)); 
+            thread::sleep(Duration::from_millis(pulse_delay.into())); 
             let off_form:Vec<(&str, &str)>= form.iter().map(|(a,b)|{
                     match *b {
                         "1"=> (*a,"0"),
@@ -268,6 +273,6 @@ mod tests {
             get_test_data(Ipv4Addr::new(10, 44, 8, 92), Ipv4Addr::new(10, 44, 8, 93));
         let commands = make_commands(vec![0, 1], &mapping, &ips);
         println!("Commands are {:?}", commands);
-        dispatch_adam_requests(commands);
+        dispatch_adam_requests(commands,20);
     }
 }

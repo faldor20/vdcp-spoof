@@ -10,3 +10,12 @@ adam_output_mapping: {
 adam_ips: {
   0: "10.0.0.1",
 }
+delays: {
+#How long to wait for data after getting the message start byte, could be made zero perhaps
+  data_read: 10,
+#How long to wait for other play commands after receiving one. Any commands falling within that time will be sent in a single http request 
+  adam_command_buffer: 11,
+#How long to wait before sending an low command to the adam after setting a pin high in a pulse.
+  adam_pulse_off: 20
+}
+

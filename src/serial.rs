@@ -11,15 +11,16 @@ use log::*;
 use serialport::prelude::*;
 use vdcp::types::ClipStatus::NoClips;
 
-use crate::vdcp::{
+use crate::{vdcp::{
     self,
     types::{ByteNibbles, Message, PortConfig},
-};
+}, config::Delays};
 
 pub fn start(
     com: String,
     vdcp_times: Receiver<Vec<u16>>,
     config: PortConfig,
+    delays:&Delays
 ) -> Result<(), Box<dyn Error>> {
     info!("[Port:{0}] Starting serial connection at com port:{1}",config.number, com);
     let port_settings = serialport::SerialPortSettings {
@@ -32,7 +33,7 @@ pub fn start(
     };
     let port = serialport::open_with_settings(&com, &port_settings)?;
 
-    serial_reader(port, vdcp_times, config)?;
+    serial_reader(port, vdcp_times, config,delays)?;
 
     Ok(())
 }
@@ -122,13 +123,14 @@ fn handle_incoming_data(
     port: &mut Box<dyn SerialPort>,
     vdcp_times: &Vec<u16>,
     config: &mut PortConfig,
+    read_delay:u64
 ) -> Result<(), io::Error> {
     //TODO: make it so taht naything after the readstart causing a faulure sends a NAK back to the sender
     read_start(port,config.number)?; //delay after if fail
 
     //Tiny delay here just to make sure the data gets to us before we read on.
     //TODO: test if this is necissary
-    thread::sleep(std::time::Duration::from_millis(10));
+    thread::sleep(std::time::Duration::from_millis(read_delay));
 
     let byte_count = read_length(port,config.number)?;
     let message = read_message(port, byte_count,config.number)?;
@@ -164,6 +166,8 @@ fn serial_reader(
     mut port: Box<dyn SerialPort>,
     vdcp_times: Receiver<Vec<u16>>,
     mut config: PortConfig,
+    delays:&Delays
+
 ) -> Result<(), std::io::Error> {
     info!("[Port:{:}] About to start read loop",config.number);
     //currently this just keeps reading till it finds a beginning of message command
@@ -184,7 +188,7 @@ fn serial_reader(
             }
             _ => (),
         }
-        match handle_incoming_data(&mut port, &latest_times, &mut config) {
+        match handle_incoming_data(&mut port, &latest_times, &mut config,delays.data_read) {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => continue,
                 _ => warn!("[Port:{:}] message read failed becuase: {:}",config.number, e),
@@ -194,3 +198,4 @@ fn serial_reader(
         thread::sleep(std::time::Duration::from_millis(5));
     }
 }
+

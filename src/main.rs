@@ -47,14 +47,16 @@ fn main() {
     //This channel allows us to send messages to the part of the code that handles
     //communicating with the adam module
     let (play_trigger,play_receiver)=channel();
+
     //Here we start one thread per serial port being monitored for vdcp data
     //Each port is controlled separately and sends messages to the adam module via a shared reference to a single message channel.
     let threads: Vec<_> = clip_time_receivers
         .drain(..)
-        .zip(conf.ports)
+        .zip(conf.ports.clone())
         
         .map(|(rec, port)| {
             let trigger=play_trigger.clone();
+            let delays=conf.delays.clone();
             thread::spawn(move || {
                 info!("spawning port monitoring thread");
 
@@ -66,7 +68,8 @@ fn main() {
                     clips:port.segments.iter().map(|a|{a.clone().into_bytes()}).collect(),
                     play_sender:trigger
                 };
-                serial::start(port.port, rec, config)
+                
+                serial::start(port.port, rec, config,&delays)
                     .expect("Completely failed interacting with serial port")
             })
         })
@@ -79,9 +82,9 @@ fn main() {
     thread::spawn(move ||{ serial::start(a, recv)
         .expect("Completely failed interacting with serial port")});
     } */
-    let adam_output_mapping= conf.adam_output_mapping;
-    let adam_ips=conf.adam_ips;
-    let adam_thread=thread::spawn(move|| {adam::start(play_receiver, adam_output_mapping, adam_ips)});
+    let adam_output_mapping= conf.adam_output_mapping.clone();
+    let adam_ips=conf.adam_ips.clone();
+    let adam_thread=thread::spawn(move|| {adam::start(play_receiver, adam_output_mapping, adam_ips, &conf.delays)});
 
     rocket_server.launch();
 
